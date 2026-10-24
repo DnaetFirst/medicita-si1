@@ -1,0 +1,26 @@
+name: Laravel CI
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_pgsql, bcmath, json
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+      - name: Install Dependencies
+        run: composer install --prefer-dist --no-interaction
+      - name: Generate key
+        run: php artisan key:generate
+      - name: Run Tests
+        run: php artisan test --env=testing
