@@ -29,13 +29,26 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="text-align: right; display: none; sm:block;">
-                        <div style="font-size: var(--font-sm); font-weight: 600;">Dr. Carlos Mendoza</div>
-                        <div style="font-size: var(--font-xs); color: var(--color-text-muted);">Administrador</div>
-                    </div>
-                    <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--color-secondary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">
-                        CM
-                    </div>
+                    @auth
+                        <div style="text-align: right;">
+                            <div style="font-size: var(--font-sm); font-weight: 600; color: var(--color-primary);">{{ Auth::user()->name }}</div>
+                            <div style="font-size: var(--font-xs); color: var(--color-text-muted);">{{ Auth::user()->rol?->nombre ?? 'Usuario' }}</div>
+                        </div>
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--color-secondary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                            {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
+                        </div>
+
+                        <form action="{{ route('logout') }}" method="POST" style="margin-left: 0.5rem;">
+                            @csrf
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" title="Cerrar Sesión">
+                                Salir
+                            </button>
+                        </form>
+                    @else
+                        <a href="{{ route('login') }}" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+                            Iniciar Sesión
+                        </a>
+                    @endauth
                 </div>
             </header>
 
