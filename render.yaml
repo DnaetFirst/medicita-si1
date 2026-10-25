@@ -1,18 +1,32 @@
 services:
   - type: web
     name: medicita-si1
-    env: php
+    runtime: docker
     plan: free
-    buildCommand: "composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache"
-    startCommand: "php artisan serve --host 0.0.0.0 --port $PORT"
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
     envVars:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: false
+        value: "false"
       - key: APP_KEY
-        generateValue: true
+        sync: false
+      - key: APP_URL
+        sync: false
       - key: DB_CONNECTION
         value: pgsql
       - key: DATABASE_URL
         sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: LOG_CHANNEL
+        value: stderr
