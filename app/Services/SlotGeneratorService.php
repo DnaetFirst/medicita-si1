@@ -7,7 +7,7 @@ use App\Models\P2\HorarioAtencion;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Collection;
 
 class SlotGeneratorService
 {
@@ -18,7 +18,7 @@ class SlotGeneratorService
     public function generarSlotsParaFecha(Medico $medico, string $fecha): Collection
     {
         $fechaCarbon = Carbon::parse($fecha);
-        $diaSemana = $fechaCarbon->isoDayOfWeek; // 1 = Lunes, 7 = Domingo
+        $diaSemana = $fechaCarbon->dayOfWeekIso; // 1 = Lunes, 7 = Domingo
 
         $horario = HorarioAtencion::where('medico_id', $medico->id)
             ->where('dia_semana', $diaSemana)
@@ -26,7 +26,11 @@ class SlotGeneratorService
             ->first();
 
         if (!$horario) {
-            return collect(); // El médico no atiende este día
+            return Slot::with('cita.paciente')
+                ->where('medico_id', $medico->id)
+                ->where('fecha', $fecha)
+                ->orderBy('hora_inicio')
+                ->get();
         }
 
         $duracion = $horario->duracion_slot_minutos ?? 15;
@@ -72,7 +76,7 @@ class SlotGeneratorService
             }
 
             // Registrar o recuperar slot persistido
-            $slot = Slot::firstOrCreate(
+            Slot::firstOrCreate(
                 [
                     'medico_id' => $medico->id,
                     'fecha' => $fecha,
@@ -84,10 +88,12 @@ class SlotGeneratorService
                     'estado' => $estado,
                 ]
             );
-
-            $slotsCreados->push($slot);
         }
 
-        return $slotsCreados;
+        return Slot::with('cita.paciente')
+            ->where('medico_id', $medico->id)
+            ->where('fecha', $fecha)
+            ->orderBy('hora_inicio')
+            ->get();
     }
 }

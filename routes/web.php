@@ -3,7 +3,11 @@
 use App\Http\Controllers\P1_Usuarios\AuthController;
 use App\Http\Controllers\P1_Usuarios\BitacoraController;
 use App\Http\Controllers\P1_Usuarios\UsuarioController;
+use App\Http\Controllers\P2_MedicosAgendas\AgendaController;
+use App\Http\Controllers\P2_MedicosAgendas\BloqueoController;
 use App\Http\Controllers\P2_MedicosAgendas\EspecialidadController;
+use App\Http\Controllers\P2_MedicosAgendas\HorarioController;
+use App\Http\Controllers\P2_MedicosAgendas\MedicoController;
 use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P3\Paciente;
@@ -60,11 +64,33 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ─────────────────────────────────────────────────────────────────
-    // Módulo de Especialidades Médicas (CU3) — Rol: Admin / Recepcionista
+    // Módulo de Médicos, Especialidades y Agendas (CU3, CU4, CU5, CU6) — Rol: Admin / Recepcionista
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista'])->group(function () {
+        // CU3: Especialidades Médicas
         Route::resource('especialidades', EspecialidadController::class)->except(['show', 'create', 'edit']);
         Route::patch('/especialidades/{especialidad}/toggle', [EspecialidadController::class, 'toggleEstado'])->name('especialidades.toggle');
+
+        // CU4: Gestión de Médicos
+        Route::resource('medicos', MedicoController::class);
+        Route::patch('/medicos/{medico}/toggle', [MedicoController::class, 'toggleEstado'])->name('medicos.toggle');
+
+        // CU5: Horarios de Atención y Generación de Slots
+        Route::get('/horarios', [HorarioController::class, 'index'])->name('horarios.index');
+        Route::get('/horarios/{medico}/edit', [HorarioController::class, 'edit'])->name('horarios.edit');
+        Route::put('/horarios/{medico}', [HorarioController::class, 'update'])->name('horarios.update');
+        Route::post('/horarios/{medico}/generar', [HorarioController::class, 'generarSlots'])->name('horarios.generar');
+
+        // CU6: Bloqueos de Agenda y Postergaciones
+        Route::resource('bloqueos', BloqueoController::class)->only(['index', 'store', 'destroy']);
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // CU12: Consulta de Agenda Médica y Turnos (Admin, Recepcionista, Médico)
+    // ─────────────────────────────────────────────────────────────────
+    Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
+        Route::get('/agenda', [AgendaController::class, 'show'])->name('agenda.show');
+        Route::get('/api/agenda/slots', [AgendaController::class, 'apiSlots'])->name('api.agenda.slots');
     });
 
 });
