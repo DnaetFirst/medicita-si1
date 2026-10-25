@@ -16,10 +16,24 @@ class UsuarioSeeder extends Seeder
 {
     public function run(): void
     {
+        $rolSuper = Rol::where('slug', 'superadmin')->first();
         $rolAdmin = Rol::where('slug', 'admin')->first();
         $rolRec = Rol::where('slug', 'recepcionista')->first();
         $rolMed = Rol::where('slug', 'medico')->first();
         $rolPac = Rol::where('slug', 'paciente')->first();
+
+        // 0. Superusuario (Acceso Total Irrestricto a Todo el Sistema)
+        $superadmin = User::firstOrCreate(
+            ['email' => 'superadmin@medicita.com'],
+            [
+                'name' => 'Superusuario Root (Acceso Total)',
+                'rol_id' => $rolSuper?->id ?? $rolAdmin->id,
+                'ci' => '10000001',
+                'telefono' => '70000000',
+                'password' => Hash::make('SuperAdmin123!'),
+                'estado' => 'activo',
+            ]
+        );
 
         // 1. Usuario Administrador
         $admin = User::firstOrCreate(

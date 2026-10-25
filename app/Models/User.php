@@ -73,9 +73,14 @@ class User extends Authenticatable
     }
 
     // RBAC Helpers
+    public function isSuperAdmin(): bool
+    {
+        return $this->rol && $this->rol->slug === 'superadmin';
+    }
+
     public function isAdmin(): bool
     {
-        return $this->rol && $this->rol->slug === 'admin';
+        return $this->rol && in_array($this->rol->slug, ['admin', 'superadmin']);
     }
 
     public function isRecepcionista(): bool

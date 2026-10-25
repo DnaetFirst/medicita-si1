@@ -11,9 +11,16 @@ class RolSeeder extends Seeder
     {
         $roles = [
             [
+                'nombre' => 'Superusuario (Acceso Total)',
+                'slug' => 'superadmin',
+                'descripcion' => 'Acceso maestro irrestricto a todos los módulos y funciones del sistema',
+                'permisos' => ['*'],
+                'activo' => true,
+            ],
+            [
                 'nombre' => 'Administrador',
                 'slug' => 'admin',
-                'descripcion' => 'Acceso total y configuración del sistema',
+                'descripcion' => 'Acceso administrativo y configuración del sistema',
                 'permisos' => ['*'],
                 'activo' => true,
             ],

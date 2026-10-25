@@ -170,6 +170,9 @@
             Credenciales de Demostración (Click para autocompletar):
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 0.375rem; justify-content: center;">
+            <button type="button" class="demo-pill" style="background: #fef3c7; color: #92400e; border-color: #f59e0b; font-weight: 700;" onclick="fillCreds('superadmin@medicita.com', 'SuperAdmin123!')">
+                ⚡ Superusuario
+            </button>
             <button type="button" class="demo-pill" onclick="fillCreds('admin@medicita.com', 'Admin123!')">
                 🛡 Admin
             </button>

@@ -24,8 +24,8 @@ class CheckRole
         $user = Auth::user();
         $userRole = $user->rol?->slug;
 
-        // Administrador tiene acceso total
-        if ($userRole === 'admin') {
+        // Superadministrador y Administrador tienen acceso total irrestricto
+        if (in_array($userRole, ['admin', 'superadmin'])) {
             return $next($request);
         }
 

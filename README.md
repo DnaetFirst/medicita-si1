@@ -69,15 +69,21 @@ El sistema digitaliza todo el ciclo de atención ambulatoria: desde la autentica
 
 | Rol | Correo Electrónico | Contraseña | Acceso y Permisos |
 | :--- | :--- | :--- | :--- |
-| **Administrador** | `admin@medicita.com` | `Admin123!` | Acceso total al sistema, bitácora, usuarios y roles. |
-| **Recepcionista** | `recepcion@medicita.com` | `Recep123!` | Emisión de fichas, check-in, agenda, pacientes y citas. |
-| **Médico** | `medico@medicita.com` | `Medico123!` | Consulta de agenda propia y conclusión de consultas. |
+| **⚡ Superusuario** | `superadmin@medicita.com` | `SuperAdmin123!` | **Acceso Maestro Irrestricto a TODO el sistema**, módulos, auditoría, médicos, citas y configuración. |
+| **Administrador** | `admin@medicita.com` | `Admin123!` | Acceso administrativo general, bitácora, usuarios y roles. |
+| **Recepcionista** | `recepcion@medicita.com` | `Recepcion123!` | Emisión de fichas (CU8), check-in (CU10), agenda, pacientes y citas. |
+| **Médico** | `dr.perez@medicita.com` | `Medico123!` | Consulta de agenda propia (CU12) y conclusión de consultas médicas. |
+
+> 💡 **Comando Artisan para Superusuario:** Puedes generar o resetear un superusuario en cualquier momento (incluso en Render Shell) ejecutando:
+> ```bash
+> php artisan make:superadmin --email=superadmin@medicita.com --password=SuperAdmin123!
+> ```
 
 ---
 
 ## 🧪 Pruebas Automatizadas (Test Suite)
 
-El proyecto cuenta con **33 pruebas funcionales automatizadas** que validan el 100% de los flujos de negocio:
+El proyecto cuenta con **36 pruebas funcionales automatizadas** que validan el 100% de los flujos de negocio y permisos:
 
 ```bash
 php artisan test
@@ -89,10 +95,11 @@ PASS  Tests\Feature\Etapa2Test (10 tests)
 PASS  Tests\Feature\Etapa3Test (8 tests)
 PASS  Tests\Feature\Etapa4Test (10 tests)
 PASS  Tests\Feature\Etapa5Test (4 tests)
+PASS  Tests\Feature\SuperAdminTest (3 tests)
 PASS  Tests\Feature\ExampleTest (1 test)
 -------------------------------------------------------
-Tests:    33 passed (129 assertions)
-Duration: 2.87s
+Tests:    36 passed (159 assertions)
+Duration: 3.15s
 ```
 
 ---
