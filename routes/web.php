@@ -8,6 +8,9 @@ use App\Http\Controllers\P2_MedicosAgendas\BloqueoController;
 use App\Http\Controllers\P2_MedicosAgendas\EspecialidadController;
 use App\Http\Controllers\P2_MedicosAgendas\HorarioController;
 use App\Http\Controllers\P2_MedicosAgendas\MedicoController;
+use App\Http\Controllers\P3_Pacientes\PacienteController;
+use App\Http\Controllers\P4_Citas\CitaController;
+use App\Http\Controllers\P4_Citas\CitaWizardController;
 use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P3\Paciente;
@@ -83,6 +86,40 @@ Route::middleware(['auth'])->group(function () {
 
         // CU6: Bloqueos de Agenda y Postergaciones
         Route::resource('bloqueos', BloqueoController::class)->only(['index', 'store', 'destroy']);
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // Módulo de Pacientes y Tutores (CU7) — Rol: Admin / Recepcionista / Médico
+    // ─────────────────────────────────────────────────────────────────
+    Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
+        Route::resource('pacientes', PacienteController::class);
+        Route::patch('/pacientes/{paciente}/toggle', [PacienteController::class, 'toggleEstado'])->name('pacientes.toggle');
+        Route::post('/pacientes/{paciente}/responsables', [PacienteController::class, 'storeResponsable'])->name('pacientes.responsables.store');
+        Route::delete('/pacientes/{paciente}/responsables/{responsable}', [PacienteController::class, 'destroyResponsable'])->name('pacientes.responsables.destroy');
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // Módulo de Citas Médicas y Fichas (CU8, CU9, CU10, CU11) — Rol: Admin / Recepcionista / Médico
+    // ─────────────────────────────────────────────────────────────────
+    Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
+        // CU8: Wizard de Solicitud de Ficha Médica y Asignación de Turnos
+        Route::get('/citas/nueva', [CitaWizardController::class, 'create'])->name('citas.nueva');
+        Route::post('/citas', [CitaWizardController::class, 'store'])->name('citas.store');
+
+        // CU10: Tablero de Citas y Control de Asistencia
+        Route::get('/citas', [CitaController::class, 'index'])->name('citas.index');
+        Route::post('/citas/{cita}/checkin', [CitaController::class, 'checkin'])->name('citas.checkin');
+        Route::post('/citas/{cita}/iniciar', [CitaController::class, 'iniciarAtencion'])->name('citas.iniciar');
+        Route::post('/citas/{cita}/finalizar', [CitaController::class, 'finalizarAtencion'])->name('citas.finalizar');
+        Route::post('/citas/{cita}/inasistencia', [CitaController::class, 'marcarInasistencia'])->name('citas.inasistencia');
+
+        // CU11: Cancelación y Reprogramación de Turnos
+        Route::post('/citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
+        Route::get('/citas/{cita}/reprogramar', [CitaController::class, 'reprogramarView'])->name('citas.reprogramar');
+        Route::post('/citas/{cita}/reprogramar', [CitaController::class, 'reprogramar'])->name('citas.reprogramar.post');
+
+        // CU9: Comprobante de Ficha Médica
+        Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('citas.show');
     });
 
     // ─────────────────────────────────────────────────────────────────
