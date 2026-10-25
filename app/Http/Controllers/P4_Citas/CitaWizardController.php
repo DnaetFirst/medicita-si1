@@ -145,6 +145,9 @@ class CitaWizardController extends Controller
             return $nuevaCita;
         });
 
+        // Notificación de confirmación por email y aviso en sistema (CU16)
+        \App\Services\NotificacionService::notificarConfirmacion($cita);
+
         return redirect()->route('citas.show', $cita)
             ->with('success', "¡Ficha médica {$cita->codigo_ficha} reservada con éxito! Turno confirmado a las {$cita->hora}.");
     }

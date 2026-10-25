@@ -204,6 +204,9 @@ class CitaController extends Controller
             ]);
         });
 
+        // Notificar cancelación por correo y aviso en sistema (CU16)
+        \App\Services\NotificacionService::notificarCancelacion($cita, $validated['motivo_cancelacion']);
+
         return redirect()->route('citas.show', $cita)
             ->with('success', "La cita {$cita->codigo_ficha} ha sido cancelada y el cupo horario fue liberado inmediatamente.");
     }
@@ -283,6 +286,9 @@ class CitaController extends Controller
 
             return $citaReprogramada;
         });
+
+        // Notificar reprogramación por email y aviso en sistema (CU16)
+        \App\Services\NotificacionService::notificarReprogramacion($nuevaCita, $cita);
 
         return redirect()->route('citas.show', $nuevaCita)
             ->with('success', "Cita reprogramada exitosamente. Se emitió la nueva ficha {$nuevaCita->codigo_ficha} para el día {$nuevaCita->fecha->format('d/m/Y')} a las {$nuevaCita->hora}.");
