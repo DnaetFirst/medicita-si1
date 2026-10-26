@@ -9,16 +9,18 @@ use App\Models\P2\HorarioAtencion;
 use App\Models\P2\Medico;
 use App\Models\User;
 use App\Services\BitacoraService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class MedicoController extends Controller
 {
     /**
      * Listado general y filtros del catálogo de médicos (CU4).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = Medico::with(['user', 'especialidad'])->latest();
 
@@ -34,11 +36,11 @@ class MedicoController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nro_registro_medico', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($qu) use ($search) {
-                      $qu->where('name', 'like', "%{$search}%")
-                         ->orWhere('ci', 'like', "%{$search}%")
-                         ->orWhere('email', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('user', function ($qu) use ($search) {
+                        $qu->where('name', 'like', "%{$search}%")
+                            ->orWhere('ci', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -65,7 +67,7 @@ class MedicoController extends Controller
     /**
      * Formulario para registrar un nuevo médico (CU4).
      */
-    public function create()
+    public function create(): View
     {
         $especialidades = Especialidad::where('activo', true)->get();
 
@@ -79,7 +81,7 @@ class MedicoController extends Controller
     /**
      * Guarda el nuevo médico y su usuario asociado (CU4).
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:150',
@@ -106,7 +108,7 @@ class MedicoController extends Controller
             'name' => $validated['name'],
             'ci' => $validated['ci'],
             'email' => $validated['email'],
-            'telefono' => $validated['telefono'],
+            'telefono' => $validated['telefono'] ?? null,
             'password' => Hash::make($validated['password']),
             'rol_id' => $rolMedico->id,
             'estado' => $validated['estado'],
@@ -117,8 +119,8 @@ class MedicoController extends Controller
             'user_id' => $user->id,
             'especialidad_id' => $validated['especialidad_id'],
             'nro_registro_medico' => strtoupper($validated['nro_registro_medico']),
-            'telefono_contacto' => $validated['telefono'],
-            'biografia' => $validated['biografia'],
+            'telefono_contacto' => $validated['telefono'] ?? null,
+            'biografia' => $validated['biografia'] ?? null,
             'estado' => $validated['estado'],
         ]);
 
@@ -149,7 +151,7 @@ class MedicoController extends Controller
     /**
      * Ficha detallada del médico (CU4).
      */
-    public function show(Medico $medico)
+    public function show(Medico $medico): View
     {
         $medico->load(['user', 'especialidad', 'horarios' => function ($q) {
             $q->orderBy('dia_semana');
@@ -167,7 +169,7 @@ class MedicoController extends Controller
     /**
      * Formulario de edición del médico (CU4).
      */
-    public function edit(Medico $medico)
+    public function edit(Medico $medico): View
     {
         $especialidades = Especialidad::where('activo', true)->get();
 
@@ -182,7 +184,7 @@ class MedicoController extends Controller
     /**
      * Actualiza el perfil del médico y usuario asociado (CU4).
      */
-    public function update(Request $request, Medico $medico)
+    public function update(Request $request, Medico $medico): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:150',
@@ -200,11 +202,11 @@ class MedicoController extends Controller
             'name' => $validated['name'],
             'ci' => $validated['ci'],
             'email' => $validated['email'],
-            'telefono' => $validated['telefono'],
+            'telefono' => $validated['telefono'] ?? null,
             'estado' => $validated['estado'] === 'activo' ? 'activo' : 'inactivo',
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $userData['password'] = Hash::make($validated['password']);
         }
 
@@ -213,8 +215,8 @@ class MedicoController extends Controller
         $medico->update([
             'especialidad_id' => $validated['especialidad_id'],
             'nro_registro_medico' => strtoupper($validated['nro_registro_medico']),
-            'telefono_contacto' => $validated['telefono'],
-            'biografia' => $validated['biografia'],
+            'telefono_contacto' => $validated['telefono'] ?? null,
+            'biografia' => $validated['biografia'] ?? null,
             'estado' => $validated['estado'],
         ]);
 
@@ -229,7 +231,7 @@ class MedicoController extends Controller
     /**
      * Alterna el estado del médico (CU4).
      */
-    public function toggleEstado(Medico $medico)
+    public function toggleEstado(Medico $medico): RedirectResponse
     {
         $nuevoEstado = $medico->estado === 'activo' ? 'inactivo' : 'activo';
         $medico->update(['estado' => $nuevoEstado]);

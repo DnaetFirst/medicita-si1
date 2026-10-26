@@ -36,7 +36,7 @@ class Slot extends Model
 
     public function cita(): HasOne
     {
-        return $this->hasOne(Cita::class, 'slot_id');
+        return $this->hasOne(Cita::class, 'slot_id')->where('estado', '!=', 'cancelada');
     }
 
     public function isDisponible(): bool

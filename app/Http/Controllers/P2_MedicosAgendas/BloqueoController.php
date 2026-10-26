@@ -7,16 +7,19 @@ use App\Models\P2\BloqueoAgenda;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Services\BitacoraService;
+use App\Services\SlotGeneratorService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class BloqueoController extends Controller
 {
     /**
      * Listado y registro de bloqueos de agenda médica (CU6).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = BloqueoAgenda::with(['medico.user', 'medico.especialidad', 'registradoPor'])->latest();
 
@@ -43,7 +46,7 @@ class BloqueoController extends Controller
     /**
      * Registra un bloqueo de agenda y deshabilita los slots involucrados (CU6).
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'medico_id' => 'required|exists:medicos,id',
@@ -70,11 +73,14 @@ class BloqueoController extends Controller
         $ini = Carbon::parse($validated['fecha_inicio'])->toDateString();
         $fin = Carbon::parse($validated['fecha_fin'])->toDateString();
 
-        $slotsAfectados = Slot::where('medico_id', $validated['medico_id'])
-            ->whereDate('fecha', '>=', $ini)
-            ->whereDate('fecha', '<=', $fin)
-            ->where('estado', 'disponible')
-            ->update(['estado' => 'bloqueado']);
+        $slotsAfectados = 0;
+        $generator = app(SlotGeneratorService::class);
+        foreach (Slot::where('medico_id', $validated['medico_id'])->whereDate('fecha', '>=', $ini)->whereDate('fecha', '<=', $fin)->where('estado', 'disponible')->get() as $slot) {
+            if ($generator->estaBloqueado($slot)) {
+                Slot::whereKey($slot->id)->where('estado', 'disponible')->update(['estado' => 'bloqueado']);
+                $slotsAfectados++;
+            }
+        }
 
         BitacoraService::registrar('CREAR_BLOQUEO_AGENDA', 'P2_Medicos', [
             'bloqueo_id' => $bloqueo->id,
@@ -90,27 +96,24 @@ class BloqueoController extends Controller
     /**
      * Elimina el bloqueo y restaura los slots a disponibles (CU6).
      */
-    public function destroy(BloqueoAgenda $bloqueo)
+    public function destroy(BloqueoAgenda $bloqueo): RedirectResponse
     {
         $ini = Carbon::parse($bloqueo->fecha_inicio)->toDateString();
         $fin = Carbon::parse($bloqueo->fecha_fin)->toDateString();
         $medicoId = $bloqueo->medico_id;
 
-        // Restaurar slots bloqueados a disponible (salvo que coincidan con descanso)
-        Slot::where('medico_id', $medicoId)
-            ->whereDate('fecha', '>=', $ini)
-            ->whereDate('fecha', '<=', $fin)
-            ->where('estado', 'bloqueado')
-            ->update(['estado' => 'disponible']);
-
         $motivo = $bloqueo->motivo;
         $bloqueo->delete();
+        $generator = app(SlotGeneratorService::class);
+        foreach (Slot::where('medico_id', $medicoId)->whereDate('fecha', '>=', $ini)->whereDate('fecha', '<=', $fin)->where('estado', 'bloqueado')->get() as $slot) {
+            $generator->liberarSlot($slot, preservarReserva: true);
+        }
 
         BitacoraService::registrar('ELIMINAR_BLOQUEO_AGENDA', 'P2_Medicos', [
             'medico_id' => $medicoId,
             'motivo' => $motivo,
         ]);
 
-        return redirect()->route('bloqueos.index')->with('success', "Bloqueo levantado correctamente. Los turnos han vuelto a estar disponibles.");
+        return redirect()->route('bloqueos.index')->with('success', 'Bloqueo levantado correctamente. Los turnos han vuelto a estar disponibles.');
     }
 }

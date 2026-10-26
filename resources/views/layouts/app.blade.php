@@ -65,9 +65,20 @@
                     </div>
                 @endif
 
+                @if(session('warning'))
+                    <div class="card" role="status">{{ session('warning') }}</div>
+                @endif
+                @if($errors->any())
+                    <div class="card" role="alert">
+                        @foreach($errors->all() as $error)
+                            <div>{{ $error }}</div>
+                        @endforeach
+                    </div>
+                @endif
                 @yield('content')
             </main>
         </div>
     </div>
+    @include('components.password-visibility')
 </body>
 </html>

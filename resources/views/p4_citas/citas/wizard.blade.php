@@ -339,7 +339,8 @@ function seleccionarEspecialidad(id, nombre) {
     }
 
     selectedMedId = null;
-    selectedSlotId = null;
+    resetSlot();
+    document.getElementById('hiddenMedicoId').value = '';
     avanzarPaso(2);
 }
 
@@ -348,11 +349,17 @@ const medicosPorEspecialidad = {
     @foreach($especialidades as $esp)
         "{{ $esp->id }}": [
             @foreach($esp->medicos as $m)
-                { id: {{ $m->id }}, nombre: "{{ addslashes($m->user?->name) }}", registro: "{{ $m->nro_registro_medico }}" },
+                { id: {{ $m->id }}, nombre: {{ Illuminate\Support\Js::from($m->user?->name) }}, registro: {{ Illuminate\Support\Js::from($m->nro_registro_medico) }} },
             @endforeach
         ],
     @endforeach
 };
+
+function escapeHtml(value) {
+    const element = document.createElement('span');
+    element.textContent = value;
+    return element.innerHTML;
+}
 
 function cargarMedicosPorEspecialidad() {
     const container = document.getElementById('listaMedicosContainer');
@@ -377,8 +384,8 @@ function cargarMedicosPorEspecialidad() {
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <div style="font-weight: 700; color: var(--color-primary);">${m.nombre}</div>
-                    <div style="font-size: 0.75rem; color: var(--color-text-muted);">Matrícula: ${m.registro}</div>
+                    <div style="font-weight: 700; color: var(--color-primary);">${escapeHtml(m.nombre)}</div>
+                    <div style="font-size: 0.75rem; color: var(--color-text-muted);">Matrícula: ${escapeHtml(m.registro)}</div>
                 </div>
                 <span class="badge badge-success">Activo</span>
             </div>
@@ -388,6 +395,7 @@ function cargarMedicosPorEspecialidad() {
 }
 
 function seleccionarMedico(id, nombre) {
+    resetSlot();
     selectedMedId = id;
     selectedMedName = nombre;
     document.getElementById('hiddenMedicoId').value = id;
@@ -395,6 +403,7 @@ function seleccionarMedico(id, nombre) {
 }
 
 function cambioFecha() {
+    resetSlot();
     const fecha = document.getElementById('inputFecha').value;
     document.getElementById('hiddenFecha').value = fecha;
     if (currentStep === 3) {
@@ -402,7 +411,18 @@ function cambioFecha() {
     }
 }
 
+let slotsRequest = 0;
+function resetSlot() {
+    slotsRequest++;
+    selectedSlotId = null;
+    selectedSlotHora = '';
+    document.getElementById('hiddenSlotId').value = '';
+    document.getElementById('slotSeleccionadoAlert').style.display = 'none';
+}
+
 async function cargarSlotsAgenda() {
+    resetSlot();
+    const requestId = slotsRequest;
     const fecha = document.getElementById('inputFecha').value;
     document.getElementById('lblResumenMedico').innerText = selectedMedName;
     document.getElementById('lblResumenFecha').innerText = fecha;
@@ -415,7 +435,9 @@ async function cargarSlotsAgenda() {
 
     try {
         const response = await fetch(`/api/agenda/slots?medico_id=${selectedMedId}&fecha=${fecha}`);
+        if (!response.ok) throw new Error('No se pudieron cargar los turnos');
         const data = await response.json();
+        if (requestId !== slotsRequest) return;
         loading.style.display = 'none';
 
         if (!data.slots || data.slots.length === 0) {
@@ -435,7 +457,7 @@ async function cargarSlotsAgenda() {
             btn.style.cursor = 'pointer';
             btn.style.border = '1px solid var(--color-border)';
 
-            if (slot.estado === 'disponible') {
+            if (slot.reservable) {
                 btn.style.background = '#ecfdf5';
                 btn.style.color = '#065f46';
                 btn.style.borderColor = '#10b981';
@@ -459,6 +481,7 @@ async function cargarSlotsAgenda() {
         });
 
     } catch (e) {
+        if (requestId !== slotsRequest) return;
         loading.style.display = 'none';
         container.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-danger); text-align: center;">Error al cargar turnos del servidor.</div>';
     }

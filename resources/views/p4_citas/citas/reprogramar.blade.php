@@ -80,7 +80,11 @@
 <script>
 const medicoId = {{ $cita->medico_id }};
 
+let slotsRequest = 0;
 async function cargarSlotsNuevos() {
+    const requestId = ++slotsRequest;
+    document.getElementById('hiddenNuevoSlotId').value = '';
+    document.getElementById('alertSlotElegido').style.display = 'none';
     const fecha = document.getElementById('inputNuevaFecha').value;
     const container = document.getElementById('slotsReprogramarContainer');
     const loading = document.getElementById('slotsReprogramarLoading');
@@ -90,7 +94,9 @@ async function cargarSlotsNuevos() {
 
     try {
         const response = await fetch(`/api/agenda/slots?medico_id=${medicoId}&fecha=${fecha}`);
+        if (!response.ok) throw new Error('No se pudieron cargar los turnos');
         const data = await response.json();
+        if (requestId !== slotsRequest) return;
         loading.style.display = 'none';
 
         if (!data.slots || data.slots.length === 0) {
@@ -110,13 +116,13 @@ async function cargarSlotsNuevos() {
             btn.style.cursor = 'pointer';
             btn.style.border = '1px solid var(--color-border)';
 
-            if (slot.estado === 'disponible') {
+            if (slot.reservable) {
                 btn.style.background = '#ecfdf5';
                 btn.style.color = '#065f46';
                 btn.style.borderColor = '#10b981';
                 btn.onclick = () => {
                     document.getElementById('hiddenNuevoSlotId').value = slot.id;
-                    document.querySelectorAll('#slotsReprogramarContainer button').forEach(b => {
+                    document.querySelectorAll('#slotsReprogramarContainer button:not(:disabled)').forEach(b => {
                         b.style.background = '#ecfdf5';
                         b.style.color = '#065f46';
                         b.style.boxShadow = 'none';
@@ -144,6 +150,7 @@ async function cargarSlotsNuevos() {
         });
 
     } catch (e) {
+        if (requestId !== slotsRequest) return;
         loading.style.display = 'none';
         container.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-danger); text-align: center;">Error al consultar turnos.</div>';
     }

@@ -196,5 +196,6 @@ function fillCreds(email, pass) {
 }
 </script>
 
+@include('components.password-visibility')
 </body>
 </html>

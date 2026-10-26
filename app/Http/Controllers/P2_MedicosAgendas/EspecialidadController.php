@@ -5,15 +5,17 @@ namespace App\Http\Controllers\P2_MedicosAgendas;
 use App\Http\Controllers\Controller;
 use App\Models\P2\Especialidad;
 use App\Services\BitacoraService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class EspecialidadController extends Controller
 {
     /**
      * Catálogo y gestión de especialidades médicas (CU3).
      */
-    public function index()
+    public function index(): View
     {
         $especialidades = Especialidad::withCount('medicos')->get();
 
@@ -27,7 +29,7 @@ class EspecialidadController extends Controller
     /**
      * Registra una nueva especialidad médica (CU3).
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'nombre' => 'required|string|max:100|unique:especialidades,nombre',
@@ -44,7 +46,7 @@ class EspecialidadController extends Controller
         $especialidad = Especialidad::create([
             'nombre' => $validated['nombre'],
             'codigo' => strtoupper($validated['codigo']),
-            'descripcion' => $validated['descripcion'],
+            'descripcion' => $validated['descripcion'] ?? null,
             'color' => $validated['color'],
             'icono' => $validated['icono'] ?? 'stethoscope',
             'activo' => true,
@@ -62,7 +64,7 @@ class EspecialidadController extends Controller
     /**
      * Actualiza una especialidad médica existente (CU3).
      */
-    public function update(Request $request, Especialidad $especialidad)
+    public function update(Request $request, Especialidad $especialidad): RedirectResponse
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:100', Rule::unique('especialidades', 'nombre')->ignore($especialidad->id)],
@@ -75,7 +77,7 @@ class EspecialidadController extends Controller
         $especialidad->update([
             'nombre' => $validated['nombre'],
             'codigo' => strtoupper($validated['codigo']),
-            'descripcion' => $validated['descripcion'],
+            'descripcion' => $validated['descripcion'] ?? null,
             'color' => $validated['color'],
             'icono' => $validated['icono'] ?? $especialidad->icono,
         ]);
@@ -91,9 +93,9 @@ class EspecialidadController extends Controller
     /**
      * Alterna el estado activo / inactivo (CU3).
      */
-    public function toggleEstado(Especialidad $especialidad)
+    public function toggleEstado(Especialidad $especialidad): RedirectResponse
     {
-        $nuevoEstado = !$especialidad->activo;
+        $nuevoEstado = ! $especialidad->activo;
         $especialidad->update(['activo' => $nuevoEstado]);
 
         $texto = $nuevoEstado ? 'activada' : 'desactivada';
@@ -109,7 +111,7 @@ class EspecialidadController extends Controller
     /**
      * Elimina una especialidad si no tiene médicos vinculados (CU3).
      */
-    public function destroy(Especialidad $especialidad)
+    public function destroy(Especialidad $especialidad): RedirectResponse
     {
         if ($especialidad->medicos()->count() > 0) {
             return back()->with('error', "No se puede eliminar la especialidad '{$especialidad->nombre}' porque tiene {$especialidad->medicos()->count()} médico(s) asignado(s). Puedes desactivarla en su lugar.");

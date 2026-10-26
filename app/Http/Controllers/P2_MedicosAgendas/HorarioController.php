@@ -8,14 +8,17 @@ use App\Models\P2\Medico;
 use App\Services\BitacoraService;
 use App\Services\SlotGeneratorService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class HorarioController extends Controller
 {
     /**
      * Resumen de horarios configurados por médico (CU5).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $medicos = Medico::with(['user', 'especialidad', 'horarios' => function ($q) {
             $q->where('activo', true)->orderBy('dia_semana');
@@ -31,7 +34,7 @@ class HorarioController extends Controller
     /**
      * Formulario para configurar la matriz semanal de un médico (CU5).
      */
-    public function edit(Medico $medico)
+    public function edit(Medico $medico): View
     {
         $medico->load(['user', 'especialidad']);
         $horariosExistentes = HorarioAtencion::where('medico_id', $medico->id)->get()->keyBy('dia_semana');
@@ -58,14 +61,30 @@ class HorarioController extends Controller
     /**
      * Guarda la configuración de la semana para el médico (CU5).
      */
-    public function update(Request $request, Medico $medico, SlotGeneratorService $slotGenerator)
+    public function update(Request $request, Medico $medico, SlotGeneratorService $slotGenerator): RedirectResponse
     {
         $request->validate([
-            'dias' => 'required|array',
+            'dias' => 'required|array:1,2,3,4,5,6,7',
+            'dias.*' => 'array',
+            'dias.*.activo' => 'sometimes|boolean',
+            'dias.*.hora_inicio' => 'required_if:dias.*.activo,1|date_format:H:i',
+            'dias.*.hora_fin' => 'required_if:dias.*.activo,1|date_format:H:i|after:dias.*.hora_inicio',
+            'dias.*.descanso_inicio' => 'required_if:dias.*.activo,1|date_format:H:i|after_or_equal:dias.*.hora_inicio',
         ]);
 
         foreach ($request->dias as $diaNum => $datos) {
-            $activo = isset($datos['activo']);
+            if (! empty($datos['activo'])) {
+                $descansoFin = Carbon::parse($datos['descanso_inicio'])->addHour();
+                if ($descansoFin->gt(Carbon::parse($datos['hora_fin']))) {
+                    throw ValidationException::withMessages([
+                        "dias.$diaNum.descanso_inicio" => 'La hora de descanso debe estar dentro de la jornada.',
+                    ]);
+                }
+            }
+        }
+
+        foreach ($request->dias as $diaNum => $datos) {
+            $activo = ! empty($datos['activo']);
 
             if ($activo) {
                 $horaInicio = $datos['hora_inicio'] ?? '08:00';
@@ -116,9 +135,10 @@ class HorarioController extends Controller
     /**
      * Dispara la regeneración masiva de slots para las próximas 2 semanas (CU5).
      */
-    public function generarSlots(Request $request, Medico $medico, SlotGeneratorService $slotGenerator)
+    public function generarSlots(Request $request, Medico $medico, SlotGeneratorService $slotGenerator): RedirectResponse
     {
-        $diasAdelante = $request->input('dias', 14);
+        $request->validate(['dias' => 'sometimes|integer|min:1|max:90']);
+        $diasAdelante = $request->integer('dias', 14);
         $totalSlots = 0;
 
         for ($i = 0; $i < $diasAdelante; $i++) {

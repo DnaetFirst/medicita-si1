@@ -18,6 +18,7 @@
             Dashboard
         </a>
 
+        @if(!auth()->user()->isPaciente())
         <div class="nav-section-title">P4 · Citas Médicas</div>
         <a href="/citas" class="nav-item {{ str_starts_with($currentRoute, 'citas') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
@@ -33,6 +34,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
             Agenda Médica (CU12)
         </a>
+        @if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista())
         <a href="/medicos" class="nav-item {{ str_starts_with($currentRoute, 'medicos') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Médicos (CU4)
@@ -50,12 +52,15 @@
             Bloqueos de Agenda (CU6)
         </a>
 
+        @endif
         <div class="nav-section-title">P3 · Pacientes</div>
         <a href="/pacientes" class="nav-item {{ str_starts_with($currentRoute, 'pacientes') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Pacientes (CU7)
         </a>
 
+        @endif
+        @if(auth()->user()->isAdmin())
         <div class="nav-section-title">P1 · Seguridad y Control</div>
         <a href="/usuarios" class="nav-item {{ str_starts_with($currentRoute, 'usuarios') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -65,6 +70,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             Bitácora Auditoría (CU19)
         </a>
+        @endif
     </nav>
 </aside>
 

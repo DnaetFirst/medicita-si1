@@ -6,15 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\BitacoraService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class AuthController extends Controller
 {
     /**
      * Muestra la pantalla de inicio de sesión (CU1).
      */
-    public function showLoginForm()
+    public function showLoginForm(): View|RedirectResponse
     {
         if (Auth::check()) {
             return redirect()->route('dashboard');
@@ -28,7 +30,7 @@ class AuthController extends Controller
     /**
      * Procesa la solicitud de login con validación y protección contra fuerza bruta (CU1).
      */
-    public function login(Request $request)
+    public function login(Request $request): RedirectResponse
     {
         $credentials = $request->validate([
             'email' => 'required|email',
@@ -42,13 +44,13 @@ class AuthController extends Controller
         $user = User::where('email', $credentials['email'])->first();
 
         // 1. Verificar si el usuario existe
-        if (!$user) {
+        if (! $user) {
             BitacoraService::registrar('LOGIN_FALLIDO', 'P1_Seguridad', [
                 'email' => $credentials['email'],
                 'razon' => 'Usuario no encontrado',
             ]);
 
-            return back()->withInput()->with('error', 'Credenciales inválidas. Verifica tu correo y contraseña.');
+            return back()->withInput($request->only('email'))->with('error', 'Credenciales inválidas. Verifica tu correo y contraseña.');
         }
 
         // 2. Verificar si la cuenta está inactiva
@@ -63,7 +65,7 @@ class AuthController extends Controller
 
         // 3. Regla de negocio: Verificar bloqueo por fuerza bruta (3 intentos fallidos)
         if ($user->bloqueado_hasta && Carbon::parse($user->bloqueado_hasta)->isFuture()) {
-            $minutosRestantes = Carbon::parse($user->bloqueado_hasta)->diffInMinutes(now()) + 1;
+            $minutosRestantes = (int) ceil(now()->diffInMinutes($user->bloqueado_hasta));
 
             BitacoraService::registrar('LOGIN_BLOQUEADO', 'P1_Seguridad', [
                 'user_id' => $user->id,
@@ -71,6 +73,10 @@ class AuthController extends Controller
             ]);
 
             return back()->with('error', "Cuenta bloqueada por seguridad tras superar 3 intentos fallidos. Inténtalo de nuevo en {$minutosRestantes} minutos.");
+        }
+
+        if ($user->bloqueado_hasta) {
+            $user->update(['intentos_fallidos' => 0, 'bloqueado_hasta' => null]);
         }
 
         // 4. Intentar autenticación
@@ -121,13 +127,13 @@ class AuthController extends Controller
             'intentos_fallidos' => $intentos,
         ]);
 
-        return back()->withInput()->with('error', "Contraseña incorrecta. Te quedan {$intentosRestantes} intento(s) antes del bloqueo temporal.");
+        return back()->withInput($request->only('email'))->with('error', "Contraseña incorrecta. Te quedan {$intentosRestantes} intento(s) antes del bloqueo temporal.");
     }
 
     /**
      * Cierra la sesión activa (CU1).
      */
-    public function logout(Request $request)
+    public function logout(Request $request): RedirectResponse
     {
         $userId = Auth::id();
         $userName = Auth::user()?->name;

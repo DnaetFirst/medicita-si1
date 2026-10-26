@@ -87,18 +87,24 @@
             Accesos Rápidos
         </h2>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            @if(!auth()->user()->isPaciente())
             <a href="/citas/nueva" class="btn btn-primary" style="width: 100%;">
                 + Agendar Cita (Wizard CU8)
             </a>
+            @if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista())
             <a href="/especialidades" class="btn btn-secondary" style="width: 100%;">
                 Ver Especialidades (CU3)
             </a>
             <a href="/medicos" class="btn btn-secondary" style="width: 100%;">
                 Ver Médicos & Horarios (CU4)
             </a>
+            @endif
             <a href="/pacientes" class="btn btn-secondary" style="width: 100%;">
                 Registro de Pacientes (CU7)
             </a>
+            @else
+                <p>Contacta con recepcion para solicitar, cancelar o reprogramar tu cita.</p>
+            @endif
         </div>
     </div>
 </div>

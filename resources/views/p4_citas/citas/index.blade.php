@@ -174,6 +174,10 @@
 
                                 <!-- Check-in Recepción (CU10) -->
                                 @if($cita->estado === 'programada')
+                                    <form method="POST" action="{{ route('citas.inasistencia', $cita) }}" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-secondary">No asistio</button>
+                                    </form>
                                     <form method="POST" action="{{ route('citas.checkin', $cita) }}" style="display: inline;">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-primary" title="Registrar llegada del paciente a recepción">

@@ -6,16 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\P1\Rol;
 use App\Models\User;
 use App\Services\BitacoraService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class UsuarioController extends Controller
 {
     /**
      * Listado y filtros de usuarios del sistema (CU2).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = User::with('rol')->latest();
 
@@ -31,8 +33,8 @@ class UsuarioController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('ci', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('ci', 'like', "%{$search}%");
             });
         }
 
@@ -59,7 +61,7 @@ class UsuarioController extends Controller
     /**
      * Formulario para crear un nuevo usuario (CU2).
      */
-    public function create()
+    public function create(): View
     {
         $roles = Rol::where('activo', true)->get();
 
@@ -73,7 +75,7 @@ class UsuarioController extends Controller
     /**
      * Guarda un nuevo usuario en la base de datos (CU2).
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:150',
@@ -97,7 +99,7 @@ class UsuarioController extends Controller
             'ci' => $validated['ci'],
             'email' => $validated['email'],
             'rol_id' => $validated['rol_id'],
-            'telefono' => $validated['telefono'],
+            'telefono' => $validated['telefono'] ?? null,
             'password' => Hash::make($validated['password']),
             'estado' => $validated['estado'],
         ]);
@@ -114,7 +116,7 @@ class UsuarioController extends Controller
     /**
      * Formulario para editar un usuario existente (CU2).
      */
-    public function edit(User $usuario)
+    public function edit(User $usuario): View
     {
         $roles = Rol::where('activo', true)->get();
 
@@ -129,7 +131,7 @@ class UsuarioController extends Controller
     /**
      * Actualiza los datos de un usuario (CU2).
      */
-    public function update(Request $request, User $usuario)
+    public function update(Request $request, User $usuario): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:150',
@@ -146,11 +148,11 @@ class UsuarioController extends Controller
             'ci' => $validated['ci'],
             'email' => $validated['email'],
             'rol_id' => $validated['rol_id'],
-            'telefono' => $validated['telefono'],
+            'telefono' => $validated['telefono'] ?? null,
             'estado' => $validated['estado'],
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $data['password'] = Hash::make($validated['password']);
         }
 
@@ -167,7 +169,7 @@ class UsuarioController extends Controller
     /**
      * Alterna el estado activo / inactivo de un usuario (CU2).
      */
-    public function toggleEstado(User $usuario)
+    public function toggleEstado(User $usuario): RedirectResponse
     {
         $nuevoEstado = $usuario->estado === 'activo' ? 'inactivo' : 'activo';
         $usuario->update(['estado' => $nuevoEstado]);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\P1\Bitacora;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BitacoraController extends Controller
@@ -13,7 +14,7 @@ class BitacoraController extends Controller
     /**
      * Módulo de auditoría y bitácora del sistema (CU19).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = Bitacora::with('user')->latest('created_at');
 
@@ -56,7 +57,7 @@ class BitacoraController extends Controller
      */
     public function exportCsv(Request $request): StreamedResponse
     {
-        $fileName = 'bitacora_auditoria_' . now()->format('Y-m-d_His') . '.csv';
+        $fileName = 'bitacora_auditoria_'.now()->format('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -72,8 +73,21 @@ class BitacoraController extends Controller
 
             $query = Bitacora::latest('created_at');
 
-            if ($request->filled('modulo')) $query->where('modulo', $request->modulo);
-            if ($request->filled('user_id')) $query->where('user_id', $request->user_id);
+            if ($request->filled('modulo')) {
+                $query->where('modulo', $request->modulo);
+            }
+            if ($request->filled('user_id')) {
+                $query->where('user_id', $request->user_id);
+            }
+            if ($request->filled('accion')) {
+                $query->where('accion', 'like', "%{$request->accion}%");
+            }
+            if ($request->filled('desde')) {
+                $query->whereDate('created_at', '>=', $request->desde);
+            }
+            if ($request->filled('hasta')) {
+                $query->whereDate('created_at', '<=', $request->hasta);
+            }
 
             $query->chunk(200, function ($logs) use ($file) {
                 foreach ($logs as $log) {
@@ -86,7 +100,7 @@ class BitacoraController extends Controller
                         $log->accion,
                         $log->ip_address,
                         $log->detalles,
-                    ]);
+                    ], ',', '"', '');
                 }
             });
 

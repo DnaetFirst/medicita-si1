@@ -31,15 +31,15 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 | Rutas Protegidas por Autenticación
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente'])->group(function () {
 
     // Dashboard Principal
     Route::get('/', function () {
         $stats = [
-            'citas_hoy' => Cita::whereDate('fecha', today())->count() ?: 18,
-            'medicos_activos' => Medico::where('estado', 'activo')->count() ?: 4,
-            'especialidades' => Especialidad::where('activo', true)->count() ?: 6,
-            'pacientes' => Paciente::where('activo', true)->count() ?: 45,
+            'citas_hoy' => Cita::whereDate('fecha', today())->count(),
+            'medicos_activos' => Medico::where('estado', 'activo')->count(),
+            'especialidades' => Especialidad::where('activo', true)->count(),
+            'pacientes' => Paciente::where('activo', true)->count(),
         ];
 
         return view('dashboard', [
@@ -71,11 +71,11 @@ Route::middleware(['auth'])->group(function () {
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista'])->group(function () {
         // CU3: Especialidades Médicas
-        Route::resource('especialidades', EspecialidadController::class)->except(['show', 'create', 'edit']);
+        Route::resource('especialidades', EspecialidadController::class)->parameters(['especialidades' => 'especialidad'])->except(['show', 'create', 'edit']);
         Route::patch('/especialidades/{especialidad}/toggle', [EspecialidadController::class, 'toggleEstado'])->name('especialidades.toggle');
 
         // CU4: Gestión de Médicos
-        Route::resource('medicos', MedicoController::class);
+        Route::resource('medicos', MedicoController::class)->except(['destroy']);
         Route::patch('/medicos/{medico}/toggle', [MedicoController::class, 'toggleEstado'])->name('medicos.toggle');
 
         // CU5: Horarios de Atención y Generación de Slots
@@ -92,7 +92,7 @@ Route::middleware(['auth'])->group(function () {
     // Módulo de Pacientes y Tutores (CU7) — Rol: Admin / Recepcionista / Médico
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
-        Route::resource('pacientes', PacienteController::class);
+        Route::resource('pacientes', PacienteController::class)->except(['destroy']);
         Route::patch('/pacientes/{paciente}/toggle', [PacienteController::class, 'toggleEstado'])->name('pacientes.toggle');
         Route::post('/pacientes/{paciente}/responsables', [PacienteController::class, 'storeResponsable'])->name('pacientes.responsables.store');
         Route::delete('/pacientes/{paciente}/responsables/{responsable}', [PacienteController::class, 'destroyResponsable'])->name('pacientes.responsables.destroy');

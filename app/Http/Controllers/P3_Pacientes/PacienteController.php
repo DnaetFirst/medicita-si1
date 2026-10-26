@@ -6,16 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\P3\Paciente;
 use App\Models\P3\ResponsableAutorizado;
 use App\Services\BitacoraService;
-use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class PacienteController extends Controller
 {
     /**
      * Listado general de pacientes con filtros y métricas (CU7).
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $query = Paciente::with(['responsables' => function ($q) {
             $q->where('activo', true);
@@ -25,9 +26,9 @@ class PacienteController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nombres', 'like', "%{$search}%")
-                  ->orWhere('apellidos', 'like', "%{$search}%")
-                  ->orWhere('ci', 'like', "%{$search}%")
-                  ->orWhere('telefono', 'like', "%{$search}%");
+                    ->orWhere('apellidos', 'like', "%{$search}%")
+                    ->orWhere('ci', 'like', "%{$search}%")
+                    ->orWhere('telefono', 'like', "%{$search}%");
             });
         }
 
@@ -40,7 +41,7 @@ class PacienteController extends Controller
         $kpis = [
             'total' => Paciente::count(),
             'activos' => Paciente::where('activo', true)->count(),
-            'con_responsable' => Paciente::whereHas('responsables', fn($q) => $q->where('activo', true))->count(),
+            'con_responsable' => Paciente::whereHas('responsables', fn ($q) => $q->where('activo', true))->count(),
             'nuevos_mes' => Paciente::whereMonth('created_at', now()->month)->count(),
         ];
 
@@ -56,7 +57,7 @@ class PacienteController extends Controller
     /**
      * Formulario para registrar un nuevo paciente (CU7).
      */
-    public function create()
+    public function create(): View
     {
         return view('p3_pacientes.pacientes.create', [
             'title' => 'Registrar Paciente — MediCita Pro',
@@ -67,7 +68,7 @@ class PacienteController extends Controller
     /**
      * Guarda el paciente y su responsable autorizado opcional (CU7).
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'ci' => 'required|string|max:20|unique:pacientes,ci',
@@ -116,7 +117,7 @@ class PacienteController extends Controller
             'activo' => true,
         ]);
 
-        if (!empty($validated['tiene_responsable']) && !empty($validated['resp_nombres'])) {
+        if (! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres'])) {
             ResponsableAutorizado::create([
                 'paciente_id' => $paciente->id,
                 'ci' => $validated['resp_ci'],
@@ -141,11 +142,11 @@ class PacienteController extends Controller
     /**
      * Muestra la ficha clínica integral del paciente (CU7).
      */
-    public function show(Paciente $paciente)
+    public function show(Paciente $paciente): View
     {
         $paciente->load([
-            'responsables' => fn($q) => $q->latest(),
-            'citas' => fn($q) => $q->with(['medico.user', 'medico.especialidad'])->latest('fecha'),
+            'responsables' => fn ($q) => $q->latest(),
+            'citas' => fn ($q) => $q->with(['medico.user', 'medico.especialidad'])->latest('fecha'),
         ]);
 
         return view('p3_pacientes.pacientes.show', [
@@ -158,7 +159,7 @@ class PacienteController extends Controller
     /**
      * Formulario de edición del paciente (CU7).
      */
-    public function edit(Paciente $paciente)
+    public function edit(Paciente $paciente): View
     {
         return view('p3_pacientes.pacientes.edit', [
             'paciente' => $paciente,
@@ -170,7 +171,7 @@ class PacienteController extends Controller
     /**
      * Actualiza los datos del paciente (CU7).
      */
-    public function update(Request $request, Paciente $paciente)
+    public function update(Request $request, Paciente $paciente): RedirectResponse
     {
         $validated = $request->validate([
             'ci' => ['required', 'string', 'max:20', Rule::unique('pacientes', 'ci')->ignore($paciente->id)],
@@ -201,9 +202,9 @@ class PacienteController extends Controller
     /**
      * Activa o desactiva un paciente (CU7).
      */
-    public function toggleEstado(Paciente $paciente)
+    public function toggleEstado(Paciente $paciente): RedirectResponse
     {
-        $paciente->activo = !$paciente->activo;
+        $paciente->activo = ! $paciente->activo;
         $paciente->save();
 
         BitacoraService::registrar('TOGGLE_ESTADO_PACIENTE', 'P3_Pacientes', [
@@ -211,13 +212,13 @@ class PacienteController extends Controller
             'nuevo_estado' => $paciente->activo ? 'activo' : 'inactivo',
         ]);
 
-        return back()->with('success', "Estado del paciente actualizado a " . ($paciente->activo ? 'Activo' : 'Inactivo'));
+        return back()->with('success', 'Estado del paciente actualizado a '.($paciente->activo ? 'Activo' : 'Inactivo'));
     }
 
     /**
      * Agrega un responsable legal/autorizado al paciente (CU7).
      */
-    public function storeResponsable(Request $request, Paciente $paciente)
+    public function storeResponsable(Request $request, Paciente $paciente): RedirectResponse
     {
         $validated = $request->validate([
             'ci' => 'required|string|max:20',
@@ -251,8 +252,10 @@ class PacienteController extends Controller
     /**
      * Desactiva un responsable autorizado (CU7).
      */
-    public function destroyResponsable(Paciente $paciente, ResponsableAutorizado $responsable)
+    public function destroyResponsable(Paciente $paciente, ResponsableAutorizado $responsable): RedirectResponse
     {
+        abort_unless($responsable->paciente_id === $paciente->id, 404);
+
         $responsable->activo = false;
         $responsable->save();
 
