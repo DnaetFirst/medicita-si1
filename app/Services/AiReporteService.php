@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\P6\ReporteIa;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 class AiReporteService
@@ -42,34 +42,8 @@ class AiReporteService
     ];
 
     /**
-     * Mapeo de términos de columnas para extracción semántica y filtrado dinámico.
-     */
-    protected const MAPA_COLUMNAS_MEDICOS = [
-        'medico_nombre' => ['nombre', 'medico', 'médico', 'doctor', 'profesional'],
-        'especialidad_nombre' => ['especialidad', 'especialidades', 'rama', 'área', 'area'],
-        'nro_registro_medico' => ['matricula', 'matrícula', 'registro', 'licencia', 'nro_registro', 'colegiado'],
-        'telefono_contacto' => ['telefono', 'teléfono', 'celular', 'contacto', 'fono'],
-        'medico_email' => ['email', 'correo', 'mail'],
-        'medico_estado' => ['estado', 'activo', 'condicion'],
-        'biografia' => ['biografia', 'biografía', 'perfil', 'descripcion', 'descripción'],
-        'medico_id' => ['id', 'codigo'],
-    ];
-
-    protected const MAPA_COLUMNAS_CITAS = [
-        'codigo_ficha' => ['ficha', 'codigo', 'código', 'numero', 'nro'],
-        'fecha_cita' => ['fecha', 'dia', 'día'],
-        'hora_cita' => ['hora', 'horario'],
-        'estado' => ['estado', 'situacion', 'condicion'],
-        'medico_nombre' => ['medico', 'médico', 'doctor'],
-        'especialidad_nombre' => ['especialidad', 'especialidades'],
-        'paciente_nombre' => ['paciente', 'persona', 'usuario'],
-        'paciente_ci' => ['ci', 'cedula', 'cédula', 'documento'],
-        'motivo_cancelacion' => ['motivo', 'razon', 'razón', 'causa', 'motivo_cancelacion'],
-        'es_cupo_recuperado' => ['recuperado', 'cupo', 'espera'],
-    ];
-
-    /**
-     * Ejecuta una consulta analítica en lenguaje natural con validación AST y auditoría.
+     * Ejecuta una consulta analítica en lenguaje natural exclusivamente mediante Google Gemini
+     * con validación AST y auditoría.
      *
      * @return array<string, mixed>
      */
@@ -78,8 +52,33 @@ class AiReporteService
         $inicio = microtime(true);
         $pregunta = trim($pregunta);
 
-        // 1. Generar SQL desde el lenguaje natural (o usar el provisto)
-        $sql = $sqlManual ? trim($sqlManual) : $this->generarSqlDesdePregunta($pregunta);
+        // 1. Generar SQL exclusivamente desde Google Gemini (o usar el manual para pruebas de seguridad)
+        try {
+            $sql = $sqlManual ? trim($sqlManual) : $this->generarSqlConGemini($pregunta);
+        } catch (Throwable $e) {
+            $tiempoMs = (int) round((microtime(true) - $inicio) * 1000);
+
+            ReporteIa::create([
+                'user_id' => $userId,
+                'pregunta_usuario' => $pregunta,
+                'sql_generado' => null,
+                'es_valido' => false,
+                'motivo_rechazo' => $e->getMessage(),
+                'filas_retornadas' => 0,
+                'tiempo_ms' => $tiempoMs,
+            ]);
+
+            return [
+                'ok' => false,
+                'mensaje' => $e->getMessage(),
+                'sugerencia' => 'Ocurrió un inconveniente al consultar con Google Gemini. Revisa la consola o configuración.',
+                'sql' => '',
+                'columnas' => [],
+                'filas' => [],
+                'total' => 0,
+                'tiempo_ms' => $tiempoMs,
+            ];
+        }
 
         // 2. Validación estructural de seguridad (AST / Regex)
         $validacion = $this->validarSql($sql);
@@ -101,7 +100,7 @@ class AiReporteService
             return [
                 'ok' => false,
                 'mensaje' => $validacion['motivo'],
-                'sugerencia' => 'Por seguridad y privacidad clínica, la consulta no pudo ser ejecutada. Puedes utilizar los filtros tradicionales del panel.',
+                'sugerencia' => 'Por seguridad y privacidad clínica, la consulta generada no cumple las reglas de confidencialidad.',
                 'sql' => $sql,
                 'columnas' => [],
                 'filas' => [],
@@ -133,7 +132,7 @@ class AiReporteService
 
             return [
                 'ok' => true,
-                'mensaje' => 'Consulta ejecutada con éxito.',
+                'mensaje' => 'Consulta generada por Gemini y ejecutada con éxito.',
                 'sql' => $sqlLimpio,
                 'columnas' => $columnas,
                 'filas' => $filas,
@@ -156,8 +155,8 @@ class AiReporteService
 
             return [
                 'ok' => false,
-                'mensaje' => 'No fue posible ejecutar la consulta en la base de datos.',
-                'sugerencia' => 'Verifica la sintaxis o consulta mediante los filtros tradicionales.',
+                'mensaje' => 'Error al ejecutar en la base de datos el SQL generado por Gemini: '.$e->getMessage(),
+                'sugerencia' => 'Verifica la sintaxis del SQL generado.',
                 'sql' => $sqlLimpio,
                 'columnas' => [],
                 'filas' => [],
@@ -257,36 +256,22 @@ class AiReporteService
     }
 
     /**
-     * Motor de generación SQL: invoca el LLM de Google Gemini si existe API Key
-     * o recurre al motor semántico adaptativo basado en esquemas.
+     * Genera la consulta SQL exclusivamente mediante Google Gemini.
      */
     public function generarSqlDesdePregunta(string $pregunta): string
     {
-        // 1. Intento con Google Gemini API si la clave está configurada
-        $sqlGemini = $this->generarSqlConGemini($pregunta);
-        if ($sqlGemini !== null) {
-            $val = $this->validarSql($sqlGemini);
-            if ($val['es_valido']) {
-                return $sqlGemini;
-            }
-        }
-
-        // 2. Motor semántico adaptativo dinámico en tiempo real
-        return $this->generarSqlSemanticoDinamico($pregunta);
+        return $this->generarSqlConGemini($pregunta);
     }
 
     /**
-     * Invoca la API de Google Gemini para sintetizar consultas SQL analíticas de solo lectura.
+     * Generación directa y 100% pura mediante la API oficial de Google Gemini.
+     * Sin consultas prehechas, plantillas ni trucos estáticos.
      */
-    public function generarSqlConGemini(string $pregunta): ?string
+    public function generarSqlConGemini(string $pregunta): string
     {
-        if (app()->runningUnitTests()) {
-            return null;
-        }
-
         $apiKey = config('services.gemini.key') ?: env('GEMINI_API_KEY');
         if (empty($apiKey)) {
-            return null;
+            throw new RuntimeException('La variable GEMINI_API_KEY no está configurada en el archivo .env.');
         }
 
         $model = config('services.gemini.model', 'gemini-flash-lite-latest');
@@ -302,23 +287,23 @@ VISTAS ANALÍTICAS Y CAMPOS DISPONIBLES:
 4. vista_reporte_cancelaciones: (fecha_cita, estado, motivo_cancelacion, es_cupo_recuperado, especialidad_id, especialidad_nombre, medico_id, medico_nombre, total_citas)
 
 REGLAS DE SEGURIDAD ESTRICTAS:
-- Retorna ÚNICAMENTE la sentencia SQL limpia. Sin explicaciones ni texto adicional. Sin bloques de markdown (no uses ```sql).
+- Retorna ÚNICAMENTE la sentencia SQL limpia. Sin explicaciones, sin texto adicional y SIN bloques de formato markdown (no uses ```sql ni ```).
 - Si el usuario pide "todos los médicos registrados" o información de médicos con especialidades, consulta SIEMPRE vista_reporte_medicos.
 - Si el usuario solicita excluir columnas ("sin teléfono", "sin matrícula", "no me muestres X"), OMITE esas columnas del SELECT.
 - Si el usuario pide columnas específicas ("solo nombre y especialidad"), incluye ÚNICAMENTE esas columnas en el SELECT.
 - En filtros WHERE para 'estado', usa SIEMPRE valores en minúsculas: 'cancelada', 'confirmada', 'programada', 'atendida', 'completada', 'en_espera', 'inasistencia'.
-- NUNCA consultes la tabla 'users' directamente, ni historias clínicas confidenciales.
-- Solo sentencias SELECT.
+- NUNCA consultes la tabla 'users' directamente, ni tablas de historias clínicas confidenciales.
+- Solo sentencias SELECT de lectura.
 PROMPT;
 
         try {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
-            $response = Http::withoutVerifying()->timeout(10)->post($url, [
+            $response = Http::withoutVerifying()->timeout(15)->post($url, [
                 'contents' => [
                     [
                         'role' => 'user',
                         'parts' => [
-                            ['text' => $systemPrompt."\n\nPregunta del usuario: ".$pregunta],
+                            ['text' => $systemPrompt."\n\nPregunta del usuario:\n".$pregunta],
                         ],
                     ],
                 ],
@@ -328,197 +313,24 @@ PROMPT;
                 ],
             ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                $texto = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                if ($texto) {
-                    $sql = preg_replace('/^```(?:sql)?\s*/i', '', trim($texto));
-                    $sql = preg_replace('/\s*```$/', '', $sql);
-                    $sql = trim($sql);
-                    if (! empty($sql)) {
-                        return $sql;
-                    }
-                }
+            if (! $response->successful()) {
+                $errorMsg = $response->json('error.message') ?? $response->body();
+                throw new RuntimeException('Error de Google Gemini API: '.$errorMsg);
             }
+
+            $texto = $response->json('candidates.0.content.parts.0.text');
+            if (empty($texto)) {
+                throw new RuntimeException('Google Gemini no generó ninguna consulta SQL para la pregunta ingresada.');
+            }
+
+            // Limpieza de formato para garantizar SQL puro
+            $sql = preg_replace('/^```(?:sql)?\s*/i', '', trim($texto));
+            $sql = preg_replace('/\s*```$/', '', $sql);
+
+            return trim($sql);
         } catch (Throwable $e) {
-            Log::warning('Error en llamada a Gemini API: '.$e->getMessage());
+            throw new RuntimeException('Fallo en la comunicación con Google Gemini: '.$e->getMessage(), 0, $e);
         }
-
-        return null;
-    }
-
-    /**
-     * Motor semántico adaptativo: interpreta dinámicamente entidades, proyecciones
-     * de columnas (inclusiones 'solo...' y exclusiones 'sin...'), filtros y agrupaciones.
-     */
-    public function generarSqlSemanticoDinamico(string $pregunta): string
-    {
-        $p = mb_strtolower(trim($pregunta));
-
-        // 1. Detectar si el objetivo principal son los MÉDICOS REGISTRADOS
-        $esConsultaMedicosRegistrados = (
-            str_contains($p, 'medicos registrados') ||
-            str_contains($p, 'doctores registrados') ||
-            str_contains($p, 'todos los medicos') ||
-            str_contains($p, 'todos los doctores') ||
-            str_contains($p, 'lista de medicos') ||
-            str_contains($p, 'lista de doctores') ||
-            str_contains($p, 'plantel medico') ||
-            str_contains($p, 'cuerpo medico') ||
-            (
-                (str_contains($p, 'medico') || str_contains($p, 'doctor')) &&
-                ! str_contains($p, 'cita') &&
-                ! str_contains($p, 'cancel') &&
-                ! str_contains($p, 'slot') &&
-                ! str_contains($p, 'turno') &&
-                ! str_contains($p, 'ocupaci') &&
-                ! str_contains($p, 'espera') &&
-                ! str_contains($p, 'recuperad') &&
-                ! str_contains($p, 'atendid') &&
-                ! str_contains($p, 'paciente')
-            )
-        );
-
-        if ($esConsultaMedicosRegistrados) {
-            $columnasBase = ['medico_nombre', 'especialidad_nombre', 'nro_registro_medico', 'telefono_contacto', 'medico_email'];
-            $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_MEDICOS, 'medico_nombre');
-            $colsSql = implode(', ', $columnas);
-
-            return "SELECT {$colsSql} FROM vista_reporte_medicos ORDER BY medico_nombre ASC LIMIT 50";
-        }
-
-        // 2. Cancelaciones
-        if (str_contains($p, 'cancelad') || str_contains($p, 'cancelaron') || str_contains($p, 'cancelaci')) {
-            $esSinMotivo = (bool) preg_match('/(?:sin|no\s+(?:me\s+)?muestres?|ocultar|excepto)\s+(?:el\s+)?motivo/iu', $p);
-            $quiereAgruparPorMotivo = ! $esSinMotivo && (
-                str_contains($p, 'por qué') ||
-                str_contains($p, 'por que') ||
-                str_contains($p, 'razon') ||
-                str_contains($p, 'razón') ||
-                (str_contains($p, 'motivo') && (str_contains($p, 'por') || str_contains($p, 'cuant') || str_contains($p, 'cual') || str_contains($p, 'cuál')))
-            );
-
-            if ($quiereAgruparPorMotivo) {
-                return "SELECT motivo_cancelacion, COUNT(*) AS total_canceladas FROM vista_reporte_citas WHERE estado = 'cancelada' AND motivo_cancelacion IS NOT NULL GROUP BY motivo_cancelacion ORDER BY total_canceladas DESC LIMIT 20";
-            }
-
-            if (str_contains($p, 'especialidad') && (str_contains($p, 'por') || str_contains($p, 'cuant'))) {
-                return "SELECT especialidad_nombre, COUNT(*) AS total_canceladas FROM vista_reporte_citas WHERE estado = 'cancelada' GROUP BY especialidad_nombre ORDER BY total_canceladas DESC LIMIT 20";
-            }
-
-            if ((str_contains($p, 'medico') || str_contains($p, 'doctor')) && (str_contains($p, 'por') || str_contains($p, 'cuant'))) {
-                return "SELECT medico_nombre, especialidad_nombre, COUNT(*) AS total_canceladas FROM vista_reporte_citas WHERE estado = 'cancelada' GROUP BY medico_nombre, especialidad_nombre ORDER BY total_canceladas DESC LIMIT 20";
-            }
-
-            $columnasBase = ['codigo_ficha', 'fecha_cita', 'hora_cita', 'medico_nombre', 'especialidad_nombre', 'paciente_nombre', 'motivo_cancelacion'];
-            $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_CITAS, 'codigo_ficha');
-            $colsSql = implode(', ', $columnas);
-
-            return "SELECT {$colsSql} FROM vista_reporte_citas WHERE estado = 'cancelada' ORDER BY fecha_cita DESC LIMIT 50";
-        }
-
-        // 3. Inasistencias (No-shows)
-        if (str_contains($p, 'inasistencia') || str_contains($p, 'no asist') || str_contains($p, 'faltaron') || str_contains($p, 'no show')) {
-            if (str_contains($p, 'especialidad')) {
-                return "SELECT especialidad_nombre, COUNT(*) AS total_inasistencias FROM vista_reporte_citas WHERE estado = 'inasistencia' GROUP BY especialidad_nombre ORDER BY total_inasistencias DESC LIMIT 20";
-            }
-
-            $columnasBase = ['codigo_ficha', 'fecha_cita', 'hora_cita', 'medico_nombre', 'especialidad_nombre', 'paciente_nombre'];
-            $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_CITAS, 'codigo_ficha');
-            $colsSql = implode(', ', $columnas);
-
-            return "SELECT {$colsSql} FROM vista_reporte_citas WHERE estado = 'inasistencia' ORDER BY fecha_cita DESC LIMIT 50";
-        }
-
-        // 4. Cupos recuperados (Lista de espera - CU18)
-        if (str_contains($p, 'recuperad') || str_contains($p, 'lista de espera') || str_contains($p, 'espera') || str_contains($p, 'cupo')) {
-            $columnasBase = ['codigo_ficha', 'fecha_cita', 'hora_cita', 'especialidad_nombre', 'medico_nombre', 'paciente_nombre', 'estado'];
-            $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_CITAS, 'codigo_ficha');
-            $colsSql = implode(', ', $columnas);
-
-            return "SELECT {$colsSql} FROM vista_reporte_citas WHERE es_cupo_recuperado = 1 OR es_cupo_recuperado = true ORDER BY fecha_cita DESC LIMIT 50";
-        }
-
-        // 5. Ocupación y turnos
-        if (str_contains($p, 'ocupaci') || str_contains($p, 'disponib') || str_contains($p, 'slot') || str_contains($p, 'turno')) {
-            return 'SELECT fecha, medico_nombre, especialidad_nombre, total_slots, slots_reservados, slots_disponibles, slots_bloqueados FROM vista_reporte_ocupacion ORDER BY fecha DESC LIMIT 50';
-        }
-
-        // 6. Médicos con más pacientes o citas
-        if (str_contains($p, 'mas citas') || str_contains($p, 'más citas') || str_contains($p, 'mas atendieron') || str_contains($p, 'mayor atencion') || str_contains($p, 'mayor cantidad')) {
-            return 'SELECT medico_nombre, especialidad_nombre, COUNT(*) AS total_citas FROM vista_reporte_citas GROUP BY medico_nombre, especialidad_nombre ORDER BY total_citas DESC LIMIT 15';
-        }
-
-        // 7. Demanda por especialidad
-        if (str_contains($p, 'demanda') || (str_contains($p, 'especialidad') && str_contains($p, 'solicitad'))) {
-            return 'SELECT especialidad_nombre, COUNT(*) AS total_citas FROM vista_reporte_citas GROUP BY especialidad_nombre ORDER BY total_citas DESC LIMIT 20';
-        }
-
-        // 8. Atendidas / Completadas
-        if (str_contains($p, 'atendid') || str_contains($p, 'completad') || str_contains($p, 'consultas')) {
-            $columnasBase = ['codigo_ficha', 'fecha_cita', 'hora_cita', 'medico_nombre', 'especialidad_nombre', 'paciente_nombre'];
-            $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_CITAS, 'codigo_ficha');
-            $colsSql = implode(', ', $columnas);
-
-            return "SELECT {$colsSql} FROM vista_reporte_citas WHERE estado IN ('atendida', 'completada', 'en_atencion') ORDER BY fecha_cita DESC LIMIT 50";
-        }
-
-        // 9. Consulta general de citas con filtrado de columnas adaptativo
-        $columnasBase = ['codigo_ficha', 'fecha_cita', 'hora_cita', 'estado', 'especialidad_nombre', 'medico_nombre', 'paciente_nombre'];
-        $columnas = $this->filtrarColumnasDinamicas($p, $columnasBase, self::MAPA_COLUMNAS_CITAS, 'codigo_ficha');
-        $colsSql = implode(', ', $columnas);
-
-        return "SELECT {$colsSql} FROM vista_reporte_citas ORDER BY fecha_cita DESC LIMIT 50";
-    }
-
-    /**
-     * Aplica reglas de inclusión ('solo...') y exclusión ('sin...', 'no mostrar...') sobre el conjunto de columnas.
-     *
-     * @param  array<string>  $columnasBase
-     * @param  array<string, array<string>>  $mapaTerminos
-     * @return array<string>
-     */
-    protected function filtrarColumnasDinamicas(string $pregunta, array $columnasBase, array $mapaTerminos, string $columnaFallback): array
-    {
-        // 1. Verificar si el usuario solicita estrictamente 'solo' ciertas columnas
-        if (preg_match('/(?:solo|solamente|únicamente|unicamente)\s+(?:el\s+|la\s+|los\s+|las\s+)?([^,.;]+)/iu', $pregunta, $mSolo)) {
-            $textoInclusion = mb_strtolower($mSolo[1]);
-            $columnasSeleccionadas = [];
-
-            foreach ($mapaTerminos as $columnaSql => $terminos) {
-                foreach ($terminos as $termino) {
-                    if (preg_match('/\b'.preg_quote($termino, '/').'\b/iu', $textoInclusion)) {
-                        $columnasSeleccionadas[] = $columnaSql;
-                        break;
-                    }
-                }
-            }
-
-            if (! empty($columnasSeleccionadas)) {
-                return array_values(array_unique($columnasSeleccionadas));
-            }
-        }
-
-        // 2. Verificar si el usuario solicita excluir columnas ('sin X', 'no mostrar X', etc.)
-        $patronExclusion = '/(?:sin|no\s+(?:me\s+)?muestres?|no\s+mostrar|no\s+incluir|ocultar|excepto|quitar|menos)\s+(?:el\s+|la\s+|los\s+|las\s+)?([^,.;]+)/iu';
-        $columnasExcluidas = [];
-
-        if (preg_match_all($patronExclusion, $pregunta, $coincidencias)) {
-            $textoExclusiones = mb_strtolower(implode(' ', $coincidencias[1]));
-
-            foreach ($mapaTerminos as $columnaSql => $terminos) {
-                foreach ($terminos as $termino) {
-                    if (preg_match('/\b'.preg_quote($termino, '/').'\b/iu', $textoExclusiones)) {
-                        $columnasExcluidas[] = $columnaSql;
-                        break;
-                    }
-                }
-            }
-        }
-
-        $resultado = array_values(array_diff($columnasBase, $columnasExcluidas));
-
-        return ! empty($resultado) ? $resultado : [$columnaFallback];
     }
 
     /**

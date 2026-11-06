@@ -13,6 +13,7 @@ use App\Services\AiReporteService;
 use App\Services\ReporteIndicadoresService;
 use Database\Seeders\RolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class CicloDosEtapaTresTest extends TestCase
@@ -24,6 +25,37 @@ class CicloDosEtapaTresTest extends TestCase
         parent::setUp();
         $this->travelTo('2026-11-07 08:00:00');
         $this->seed(RolSeeder::class);
+
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => function ($request) {
+                $payload = json_decode($request->body(), true);
+                $fullText = $payload['contents'][0]['parts'][0]['text'] ?? '';
+                preg_match('/Pregunta del usuario:\s*(.*)$/is', $fullText, $m);
+                $pregunta = strtolower($m[1] ?? '');
+
+                $sql = 'SELECT medico_nombre, especialidad_nombre FROM vista_reporte_medicos LIMIT 50';
+
+                if (str_contains($pregunta, 'sin matricula') || str_contains($pregunta, 'solo nombre')) {
+                    $sql = 'SELECT medico_nombre, especialidad_nombre FROM vista_reporte_medicos LIMIT 50';
+                } elseif (str_contains($pregunta, 'medicos registrados')) {
+                    $sql = 'SELECT medico_nombre, especialidad_nombre, nro_registro_medico, telefono_contacto FROM vista_reporte_medicos LIMIT 50';
+                } elseif (str_contains($pregunta, 'cancelad')) {
+                    $sql = "SELECT codigo_ficha, fecha_cita, hora_cita, estado, motivo_cancelacion, paciente_nombre, medico_nombre, especialidad_nombre FROM vista_reporte_citas WHERE estado = 'cancelada' LIMIT 50";
+                }
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    ['text' => $sql],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            },
+        ]);
     }
 
     private function crearUsuario(string $rolSlug): User
