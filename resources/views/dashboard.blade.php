@@ -87,7 +87,14 @@
             Accesos Rápidos
         </h2>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            @if(!auth()->user()->isPaciente())
+            @if(auth()->user()->isPaciente())
+            <a href="{{ route('citas.nueva') }}" class="btn btn-primary" style="width: 100%;">
+                + Solicitar Ficha Médica (CU8)
+            </a>
+            <a href="{{ route('citas.mis_citas') }}" class="btn btn-secondary" style="width: 100%;">
+                Mis Citas Médicas (CU13)
+            </a>
+            @else
             <a href="/citas/nueva" class="btn btn-primary" style="width: 100%;">
                 + Agendar Cita (Wizard CU8)
             </a>
@@ -102,8 +109,6 @@
             <a href="/pacientes" class="btn btn-secondary" style="width: 100%;">
                 Registro de Pacientes (CU7)
             </a>
-            @else
-                <p>Contacta con recepcion para solicitar, cancelar o reprogramar tu cita.</p>
             @endif
         </div>
     </div>

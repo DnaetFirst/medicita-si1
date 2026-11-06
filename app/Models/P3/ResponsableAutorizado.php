@@ -10,6 +10,7 @@ class ResponsableAutorizado extends Model
     protected $table = 'responsables_autorizados';
 
     protected $fillable = [
+        'user_id', 'vigencia_inicio', 'puede_gestionar_citas', 'puede_ver_resultados',
         'paciente_id',
         'ci',
         'nombres',
@@ -21,7 +22,7 @@ class ResponsableAutorizado extends Model
 
     protected $casts = [
         'fecha_limite_vigencia' => 'date',
-        'activo' => 'boolean',
+        'activo' => 'boolean', 'vigencia_inicio' => 'date', 'puede_gestionar_citas' => 'boolean', 'puede_ver_resultados' => 'boolean',
     ];
 
     public function paciente(): BelongsTo
@@ -31,6 +32,6 @@ class ResponsableAutorizado extends Model
 
     public function isVigente(): bool
     {
-        return $this->activo && $this->fecha_limite_vigencia->gte(today());
+        return $this->activo && $this->fecha_limite_vigencia->gte(today()) && (! $this->vigencia_inicio || $this->vigencia_inicio->lte(today()));
     }
 }

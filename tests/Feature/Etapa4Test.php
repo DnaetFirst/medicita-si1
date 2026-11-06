@@ -2,9 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\P1\Rol;
-use App\Models\P2\Especialidad;
-use App\Models\P2\HorarioAtencion;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
@@ -20,9 +17,13 @@ class Etapa4Test extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $recepcionista;
+
     protected Medico $medico;
+
     protected Paciente $paciente;
+
     protected Slot $slot;
 
     protected function setUp(): void
@@ -237,24 +238,26 @@ class Etapa4Test extends TestCase
             'estado' => 'programada',
         ]);
 
+        $this->travelTo($this->slot->fecha->copy()->setTime(8, 30));
+
         // 1. Recepcionista realiza check-in del paciente
         $responseCheckin = $this->actingAs($this->recepcionista)->post(route('citas.checkin', $cita));
         $responseCheckin->assertRedirect();
-        $this->assertEquals('confirmada', $cita->fresh()->estado);
+        $this->assertEquals('en_espera', $cita->fresh()->estado);
         $this->assertNotNull($cita->fresh()->hora_checkin);
 
         // 2. Médico inicia consulta
-        $responseIniciar = $this->actingAs($this->admin)->post(route('citas.iniciar', $cita));
+        $responseIniciar = $this->actingAs($this->medico->user)->post(route('citas.iniciar', $cita));
         $responseIniciar->assertRedirect();
-        $this->assertEquals('en_curso', $cita->fresh()->estado);
+        $this->assertEquals('en_atencion', $cita->fresh()->estado);
 
         // 3. Médico finaliza atención con diagnóstico
-        $responseFinalizar = $this->actingAs($this->admin)->post(route('citas.finalizar', $cita), [
+        $responseFinalizar = $this->actingAs($this->medico->user)->post(route('citas.finalizar', $cita), [
             'observaciones_atencion' => 'Paciente en buen estado general. Se indica tratamiento preventivo.',
         ]);
         $responseFinalizar->assertRedirect();
         $this->assertEquals('atendida', $cita->fresh()->estado);
-        $this->assertEquals('Paciente en buen estado general. Se indica tratamiento preventivo.', $cita->fresh()->observaciones_atencion);
+        $this->assertNull($cita->fresh()->observaciones_atencion);
     }
 
     /**
@@ -288,7 +291,7 @@ class Etapa4Test extends TestCase
         $this->assertEquals('disponible', $this->slot->fresh()->estado);
 
         $this->assertDatabaseHas('bitacoras', [
-            'accion' => 'CANCELAR_CITA',
+            'accion' => 'CANCELAR',
             'modulo' => 'P4_Citas',
         ]);
     }
@@ -321,7 +324,7 @@ class Etapa4Test extends TestCase
         ]);
 
         $response = $this->actingAs($this->recepcionista)->post(route('citas.reprogramar.post', $citaOriginal), [
-            'nuevo_slot_id' => $nuevoSlot->id,
+            'nuevo_slot_id' => $nuevoSlot->id, 'aceptacion_paciente' => 1,
             'motivo_reprogramacion' => 'Cruce de horario con jornada escolar del menor.',
         ]);
 
@@ -335,12 +338,13 @@ class Etapa4Test extends TestCase
         // El nuevo slot debe haber pasado a reservado
         $this->assertEquals('reservado', $nuevoSlot->fresh()->estado);
 
-        // La cita original debe haber quedado cancelada con referencia a reprogramación
-        $this->assertEquals('cancelada', $citaOriginal->fresh()->estado);
-        $this->assertEquals($citaOriginal->id, $citaNueva->reprogramada_de_id);
+        // La reprogramación conserva la identidad de la cita.
+        $this->assertEquals('programada', $citaOriginal->fresh()->estado);
+        $this->assertEquals($citaOriginal->id, $citaNueva->id);
+        $this->assertDatabaseCount('citas', 1);
 
         $this->assertDatabaseHas('bitacoras', [
-            'accion' => 'REPROGRAMAR_CITA',
+            'accion' => 'REPROGRAMAR',
             'modulo' => 'P4_Citas',
         ]);
     }

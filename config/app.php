@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'America/La_Paz',
+
+    'legacy_timestamp_timezone' => env('LEGACY_TIMESTAMP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

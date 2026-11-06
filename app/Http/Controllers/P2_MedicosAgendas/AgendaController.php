@@ -77,8 +77,12 @@ class AgendaController extends Controller
         abort_if($request->user()->isMedico() && $request->user()->medico?->id !== $medico->id, 403);
         $slots = $slotGenerator->generarSlotsParaFecha($medico, $request->fecha);
         $slots->each(function (Slot $slot): void {
-            $slot->setAttribute('reservable', $slot->estado === 'disponible' && Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio)->isFuture());
+            $slot->setAttribute('reservable', $slot->estado === 'disponible' && $slot->medico->estado === 'activo' && $slot->medico->user->estado === 'activo' && $slot->medico->especialidad->activo && ! app(SlotGeneratorService::class)->estaBloqueado($slot) && Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio)->isFuture());
         });
+
+        if ($request->user()->isPaciente()) {
+            $slots->each(fn (Slot $slot) => $slot->setRelations([]));
+        }
 
         $stats = [
             'total' => $slots->count(),

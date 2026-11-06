@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Mail\CitaCanceladaMail;
-use App\Mail\CitaConfirmadaMail;
-use App\Mail\CitaReprogramadaMail;
-use App\Models\P2\Especialidad;
+use App\Jobs\EnviarAviso;
+use App\Mail\AvisoCitaMail;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
@@ -16,6 +14,8 @@ use App\Services\NotificacionService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class Etapa5Test extends TestCase
@@ -23,9 +23,13 @@ class Etapa5Test extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $recepcionista;
+
     protected Medico $medico;
+
     protected Paciente $paciente;
+
     protected Slot $slot;
 
     protected function setUp(): void
@@ -38,6 +42,7 @@ class Etapa5Test extends TestCase
         $this->medico = Medico::with(['user', 'especialidad'])->first();
 
         // Crear paciente con correo electrónico y cuenta de usuario asociada
+        $this->admin->forceFill(['email_verified_at' => now()])->save();
         $this->paciente = Paciente::create([
             'ci' => '7890123',
             'nombres' => 'Sebastián',
@@ -80,15 +85,17 @@ class Etapa5Test extends TestCase
         $this->assertNotNull($cita);
 
         // Verificar que se envió el correo de confirmación
-        Mail::assertSent(CitaConfirmadaMail::class, function ($mail) use ($cita) {
-            return $mail->hasTo('sebastian.vargas@correo.com') &&
-                   $mail->cita->id === $cita->id;
+        $response->assertRedirect();
+        (new EnviarAviso(Notificacion::sole()->id))->handle();
+        Mail::assertSent(AvisoCitaMail::class, function ($mail) use ($cita) {
+            return $mail->hasTo($this->admin->email) &&
+                   $mail->aviso->cita_id === $cita->id;
         });
 
         // Verificar que se registró la notificación en base de datos
         $this->assertDatabaseHas('notificaciones', [
             'user_id' => $this->paciente->user_id,
-            'tipo' => 'cita_confirmada',
+            'tipo' => 'reserva',
         ]);
     }
 
@@ -118,15 +125,17 @@ class Etapa5Test extends TestCase
         ]);
 
         // Verificar envío del correo de cancelación
-        Mail::assertSent(CitaCanceladaMail::class, function ($mail) use ($motivo) {
-            return $mail->hasTo('sebastian.vargas@correo.com') &&
-                   $mail->motivo === $motivo;
+        $response->assertRedirect();
+        (new EnviarAviso(Notificacion::sole()->id))->handle();
+        Mail::assertSent(AvisoCitaMail::class, function ($mail) use ($motivo) {
+            return $mail->hasTo($this->admin->email) &&
+                   ! str_contains($mail->aviso->mensaje, $motivo);
         });
 
         // Verificar notificación en BD
         $this->assertDatabaseHas('notificaciones', [
             'user_id' => $this->paciente->user_id,
-            'tipo' => 'cita_cancelada',
+            'tipo' => 'cancelar',
         ]);
     }
 
@@ -158,18 +167,20 @@ class Etapa5Test extends TestCase
         ]);
 
         $response = $this->actingAs($this->recepcionista)->post(route('citas.reprogramar.post', $cita), [
-            'nuevo_slot_id' => $nuevoSlot->id,
+            'nuevo_slot_id' => $nuevoSlot->id, 'aceptacion_paciente' => 1,
             'motivo_reprogramacion' => 'Cambio de turno solicitado por el paciente',
         ]);
 
-        Mail::assertSent(CitaReprogramadaMail::class, function ($mail) use ($nuevoSlot) {
-            return $mail->hasTo('sebastian.vargas@correo.com') &&
-                   $mail->citaNueva->slot_id === $nuevoSlot->id;
+        $response->assertRedirect();
+        (new EnviarAviso(Notificacion::sole()->id))->handle();
+        Mail::assertSent(AvisoCitaMail::class, function ($mail) {
+            return $mail->hasTo($this->admin->email) &&
+                   str_contains($mail->aviso->mensaje, '14:00');
         });
 
         $this->assertDatabaseHas('notificaciones', [
             'user_id' => $this->paciente->user_id,
-            'tipo' => 'reprogramacion',
+            'tipo' => 'reprogramar',
         ]);
     }
 
@@ -192,8 +203,11 @@ class Etapa5Test extends TestCase
         Mail::shouldReceive('to->send')->andThrow(new \Exception('SMTP Connection timeout'));
 
         // El servicio debe atrapar la excepción y permitir que la app continúe
-        NotificacionService::notificarConfirmacion($cita);
+        Queue::fake([EnviarAviso::class]);
+        NotificacionService::registrarEvento($cita, (string) Str::uuid(), 'reserva');
+        Queue::assertPushed(EnviarAviso::class);
+        (new EnviarAviso(Notificacion::sole()->id))->handle();
 
-        $this->assertTrue(true, 'El servicio de notificación procesó el fallo sin interrumpir el flujo.');
+        $this->assertDatabaseHas('notificaciones', ['cita_id' => $cita->id, 'estado_envio' => 'fallido', 'intentos' => 1]);
     }
 }

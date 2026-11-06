@@ -13,20 +13,59 @@
     </div>
 
     <nav class="sidebar-nav">
+        <a class="nav-item" href="{{ route('avisos.index') }}">Mis avisos</a>
+        @if(auth()->user()->rol?->slug !== 'lab')<a class="nav-item" href="{{ route('historial.index') }}">Historial de citas</a>@endif
+        @if(auth()->user()->isMedico())<a class="nav-item" href="{{ route('bloqueos.index') }}">Bloqueos de mi agenda</a>@endif
         <a href="/" class="nav-item {{ $currentRoute === '/' || $currentRoute === 'dashboard' ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
             Dashboard
         </a>
 
-        @if(!auth()->user()->isPaciente())
+        @if(auth()->user()->isPaciente())
+        <div class="nav-section-title">Portal del Paciente</div>
+        <a href="/mis-citas" class="nav-item {{ str_starts_with($currentRoute, 'mis-citas') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+            Mis Citas Médicas (CU13)
+        </a>
+        <a href="{{ route('laboratorio.mis_resultados') }}" class="nav-item {{ str_starts_with($currentRoute, 'mis-resultados') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></svg>
+            Mis Resultados (CU15)
+        </a>
+        <a href="{{ route('espera.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'espera') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Lista de Espera (CU18)
+        </a>
+        @unless(auth()->user()->isMedico())<a href="/citas/nueva" class="nav-item {{ $currentRoute === 'citas/nueva' ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            Solicitar Ficha (CU8)
+        </a>@endunless
+        <a href="{{ route('espera.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'espera') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Lista de Espera (CU18)
+        </a>
+        @endif
+
+        @if(auth()->user()->rol?->slug === 'lab' || auth()->user()->isAdmin())
+        <div class="nav-section-title">P5 · Laboratorio</div>
+        <a href="{{ route('laboratorio.ordenes.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'laboratorio') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2v17.5c0 1.4-1.1 2.5-2.5 2.5s-2.5-1.1-2.5-2.5V2"/><path d="M8.5 2h7"/><path d="M14.5 16h-5"/></svg>
+            Órdenes de Laboratorio (CU15)
+        </a>
+        @endif
+
+        @if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista() || auth()->user()->isMedico())
         <div class="nav-section-title">P4 · Citas Médicas</div>
-        <a href="/citas" class="nav-item {{ str_starts_with($currentRoute, 'citas') ? 'active' : '' }}">
+        <a href="/citas" class="nav-item {{ str_starts_with($currentRoute, 'citas') && $currentRoute !== 'citas/nueva' ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
             Gestionar Citas
         </a>
-        <a href="/citas/nueva" class="nav-item {{ $currentRoute === 'citas/nueva' ? 'active' : '' }}">
+        @unless(auth()->user()->isMedico())<a href="/citas/nueva" class="nav-item {{ $currentRoute === 'citas/nueva' ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
             Solicitar Ficha (CU8)
+        </a>@endunless
+        <a href="{{ route('espera.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'espera') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Lista de Espera (CU18)
         </a>
 
         <div class="nav-section-title">P2 · Médicos y Horarios</div>
@@ -54,7 +93,7 @@
 
         @endif
         <div class="nav-section-title">P3 · Pacientes</div>
-        <a href="/pacientes" class="nav-item {{ str_starts_with($currentRoute, 'pacientes') ? 'active' : '' }}">
+        <a href="{{ auth()->user()->isMedico() ? route('historial.index') : route('pacientes.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'pacientes') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Pacientes (CU7)
         </a>

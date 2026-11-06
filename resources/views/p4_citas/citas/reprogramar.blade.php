@@ -32,6 +32,11 @@
     <!-- Formulario de Reprogramación -->
     <form method="POST" action="{{ route('citas.reprogramar.post', $cita) }}" class="card" style="padding: 2rem;">
         @csrf
+        <input type="hidden" name="version" value="{{ $cita->version }}">
+        <input type="hidden" name="operacion_id" value="{{ old('operacion_id', (string) Str::uuid()) }}">
+        <label class="form-label">Profesional de la misma especialidad</label>
+        <select id="nuevoMedico" class="form-input" onchange="cargarSlotsNuevos()">@foreach($medicos as $medico)<option value="{{ $medico->id }}" @selected($medico->id === $cita->medico_id)>{{ $medico->user->name }}</option>@endforeach</select>
+        <label class="cycle-consent"><input type="checkbox" name="aceptacion_paciente" value="1" required @checked(old('aceptacion_paciente'))> El paciente acepta expresamente el nuevo turno y profesional seleccionados.</label>
         <input type="hidden" name="nuevo_slot_id" id="hiddenNuevoSlotId" required>
 
         <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--color-primary); margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">
@@ -65,7 +70,7 @@
 
         <div style="margin-bottom: 1.5rem;">
             <label class="form-label">Motivo de Reprogramación *</label>
-            <textarea name="motivo_reprogramacion" class="form-input" rows="3" required placeholder="Ej. Solicitud del paciente por cambio de horario laboral, reprogramación médica, etc."></textarea>
+            <textarea name="motivo_reprogramacion" class="form-input" rows="3" required placeholder="Ej. Solicitud del paciente por cambio de horario laboral, reprogramación médica, etc.">{{ old('motivo_reprogramacion') }}</textarea>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 1rem;">
@@ -78,11 +83,12 @@
 </div>
 
 <script>
-const medicoId = {{ $cita->medico_id }};
+
 
 let slotsRequest = 0;
 async function cargarSlotsNuevos() {
     const requestId = ++slotsRequest;
+    const medicoId = document.getElementById('nuevoMedico').value;
     document.getElementById('hiddenNuevoSlotId').value = '';
     document.getElementById('alertSlotElegido').style.display = 'none';
     const fecha = document.getElementById('inputNuevaFecha').value;

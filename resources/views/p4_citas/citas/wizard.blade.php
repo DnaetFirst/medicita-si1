@@ -12,8 +12,8 @@
                 Asistente guiado de 4 pasos con asignación de turnos de 15 minutos y confirmación en tiempo real
             </p>
         </div>
-        <a href="{{ route('citas.index') }}" class="btn btn-secondary">
-            &larr; Volver al Tablero
+        <a href="{{ auth()->user()->isPaciente() ? route('citas.mis_citas') : route('citas.index') }}" class="btn btn-secondary">
+            &larr; {{ auth()->user()->isPaciente() ? 'Mis Citas' : 'Volver al Tablero' }}
         </a>
     </div>
 
@@ -47,6 +47,8 @@
     <!-- Formulario Principal -->
     <form id="wizardForm" method="POST" action="{{ route('citas.store') }}">
         @csrf
+        @if($derivacion)<input type="hidden" name="derivacion_id" value="{{ $derivacion->id }}"><p class="card cycle-card">Reserva asociada a la derivación #{{ $derivacion->id }}. El paciente y la especialidad se verificarán al confirmar.</p>@endif
+        <input type="hidden" name="operacion_id" value="{{ old('operacion_id', (string) Str::uuid()) }}">
         <input type="hidden" name="especialidad_id" id="hiddenEspecialidadId" value="{{ $selectedEspecialidadId }}">
         <input type="hidden" name="medico_id" id="hiddenMedicoId" value="{{ $selectedMedicoId }}">
         <input type="hidden" name="slot_id" id="hiddenSlotId" value="">
@@ -169,60 +171,65 @@
                 Vincula el paciente a la cita o registra uno nuevo si es primera consulta
             </p>
 
-            <!-- Toggle nuevo / existente -->
-            <div style="margin-bottom: 1.25rem; display: flex; gap: 1.5rem; background: var(--color-surface-hover); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
-                <label style="font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
-                    <input type="radio" name="tipo_paciente" value="existente" checked onchange="toggleTipoPaciente('existente')">
-                    Paciente Registrado en Sistema
-                </label>
-                <label style="font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
-                    <input type="radio" name="tipo_paciente" value="nuevo" onchange="toggleTipoPaciente('nuevo')">
-                    Nuevo Paciente (Alta Rápida)
-                </label>
-            </div>
+            @if(auth()->user()->isPaciente())
+                <label class="form-label">Paciente para quien se reserva</label>
+                <select name="paciente_id" class="form-input" required>@foreach($pacientes as $pac)<option value="{{ $pac->id }}" @selected(old('paciente_id', $selectedPacienteId) == $pac->id)>{{ $pac->nombre_completo }}</option>@endforeach</select>
+            @else
+                <!-- Toggle nuevo / existente -->
+                <div style="margin-bottom: 1.25rem; display: flex; gap: 1.5rem; background: var(--color-surface-hover); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
+                    <label style="font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="radio" name="tipo_paciente" value="existente" checked onchange="toggleTipoPaciente('existente')">
+                        Paciente Registrado en Sistema
+                    </label>
+                    <label style="font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="radio" name="tipo_paciente" value="nuevo" onchange="toggleTipoPaciente('nuevo')">
+                        Nuevo Paciente (Alta Rápida)
+                    </label>
+                </div>
 
-            <!-- Paciente Existente -->
-            <div id="seccionPacienteExistente" style="margin-bottom: 1.5rem;">
-                <label class="form-label">Selecciona el Paciente *</label>
-                <select name="paciente_id" id="selectPaciente" class="form-input" style="width: 100%; font-size: 0.95rem;">
-                    <option value="">Selecciona paciente por nombre o C.I...</option>
-                    @foreach($pacientes as $pac)
-                        <option value="{{ $pac->id }}" {{ ($selectedPacienteId == $pac->id) ? 'selected' : '' }}>
-                            {{ $pac->nombre_completo }} — CI: {{ $pac->ci }} (Cel: {{ $pac->telefono }})
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                <!-- Paciente Existente -->
+                <div id="seccionPacienteExistente" style="margin-bottom: 1.5rem;">
+                    <label class="form-label">Selecciona el Paciente *</label>
+                    <select name="paciente_id" id="selectPaciente" class="form-input" style="width: 100%; font-size: 0.95rem;">
+                        <option value="">Selecciona paciente por nombre o C.I...</option>
+                        @foreach($pacientes as $pac)
+                            <option value="{{ $pac->id }}" {{ ($selectedPacienteId == $pac->id) ? 'selected' : '' }}>
+                                {{ $pac->nombre_completo }} — CI: {{ $pac->ci }} (Cel: {{ $pac->telefono }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
-            <!-- Nuevo Paciente Inline -->
-            <input type="hidden" name="crear_paciente_nuevo" id="crearPacienteNuevo" value="0">
-            <div id="seccionPacienteNuevo" style="display: none; background: var(--color-surface-hover); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; border: 1px dashed var(--color-border);">
-                <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: var(--color-primary); font-weight: 700;">Datos del Nuevo Paciente</h4>
-                <div class="grid-2" style="margin-bottom: 0.75rem;">
-                    <div>
-                        <label class="form-label">Cédula de Identidad (CI) *</label>
-                        <input type="text" name="nuevo_ci" class="form-input" placeholder="Ej. 9988776">
+                <!-- Nuevo Paciente Inline -->
+                <input type="hidden" name="crear_paciente_nuevo" id="crearPacienteNuevo" value="0">
+                <div id="seccionPacienteNuevo" style="display: none; background: var(--color-surface-hover); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; border: 1px dashed var(--color-border);">
+                    <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: var(--color-primary); font-weight: 700;">Datos del Nuevo Paciente</h4>
+                    <div class="grid-2" style="margin-bottom: 0.75rem;">
+                        <div>
+                            <label class="form-label">Cédula de Identidad (CI) *</label>
+                            <input type="text" name="nuevo_ci" class="form-input" placeholder="Ej. 9988776">
+                        </div>
+                        <div>
+                            <label class="form-label">Fecha de Nacimiento *</label>
+                            <input type="date" name="nuevo_fecha_nacimiento" class="form-input" max="{{ date('Y-m-d') }}">
+                        </div>
+                    </div>
+                    <div class="grid-2" style="margin-bottom: 0.75rem;">
+                        <div>
+                            <label class="form-label">Nombres *</label>
+                            <input type="text" name="nuevo_nombres" class="form-input" placeholder="Ej. Ana Lucía">
+                        </div>
+                        <div>
+                            <label class="form-label">Apellidos *</label>
+                            <input type="text" name="nuevo_apellidos" class="form-input" placeholder="Ej. Paz Terrazas">
+                        </div>
                     </div>
                     <div>
-                        <label class="form-label">Fecha de Nacimiento *</label>
-                        <input type="date" name="nuevo_fecha_nacimiento" class="form-input" max="{{ date('Y-m-d') }}">
+                        <label class="form-label">Teléfono de Contacto *</label>
+                        <input type="text" name="nuevo_telefono" class="form-input" placeholder="Ej. 78012345">
                     </div>
                 </div>
-                <div class="grid-2" style="margin-bottom: 0.75rem;">
-                    <div>
-                        <label class="form-label">Nombres *</label>
-                        <input type="text" name="nuevo_nombres" class="form-input" placeholder="Ej. Ana Lucía">
-                    </div>
-                    <div>
-                        <label class="form-label">Apellidos *</label>
-                        <input type="text" name="nuevo_apellidos" class="form-input" placeholder="Ej. Paz Terrazas">
-                    </div>
-                </div>
-                <div>
-                    <label class="form-label">Teléfono de Contacto *</label>
-                    <input type="text" name="nuevo_telefono" class="form-input" placeholder="Ej. 78012345">
-                </div>
-            </div>
+            @endif
 
             <!-- Motivo de consulta -->
             <div style="margin-bottom: 1.5rem;">

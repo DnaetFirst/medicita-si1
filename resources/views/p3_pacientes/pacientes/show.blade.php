@@ -317,7 +317,13 @@
                 </div>
             </div>
 
-            <div style="margin-bottom: 1.25rem;">
+            <div class="cycle-grid">
+<label>Cuenta del responsable (ID de usuario PAC)<input type="number" min="1" name="user_id" class="form-input" value="{{ old('user_id') }}"><small>La cuenta debe tener el mismo CI. Déjalo vacío si no tendrá acceso al portal.</small></label>
+<label>Inicio de vigencia<input type="date" name="vigencia_inicio" class="form-input" value="{{ old('vigencia_inicio', today()->toDateString()) }}"></label>
+<label><input type="checkbox" name="puede_gestionar_citas" value="1" @checked(old('puede_gestionar_citas'))> Gestionar citas e historial administrativo</label>
+<label><input type="checkbox" name="puede_ver_resultados" value="1" @checked(old('puede_ver_resultados'))> Consultar resultados publicados</label>
+</div>
+<div style="margin-bottom: 1.25rem;">
                 <label class="form-label">Fecha Límite de Vigencia de la Autorización *</label>
                 <input type="date" name="fecha_limite_vigencia" class="form-input" required value="{{ now()->addYear()->toDateString() }}" min="{{ date('Y-m-d') }}">
                 <small style="color: var(--color-text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">

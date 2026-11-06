@@ -112,10 +112,10 @@ Duration: 3.15s
 
 ### 2. Backend & Frontend en Render.com
 1. Conectar el repositorio GitHub `https://github.com/DnaetFirst/medicita-si1`.
-2. Crear un **Web Service** usando el archivo [`render.yaml`](file:///c:/Users/ronny/Downloads/Clinica/medicita-si1/render.yaml) preconfigurado en el repositorio:
+2. Crear un **Web Service** usando el archivo [`render.yaml`](./render.yaml) preconfigurado en el repositorio:
    - **Environment:** PHP 8.4
    - **Build Command:** `composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache`
-   - **Start Command:** `php artisan migrate --force && php artisan db:seed --force && php -S 0.0.0.0:$PORT -t public`
+   - **Start Command:** `php artisan migrate --force && php -S 0.0.0.0:$PORT -t public` *(Nota: El comando `php artisan db:seed --force` debe ejecutarse solo una vez en el despliegue inicial mediante la consola de Render para garantizar idempotencia y evitar duplicidad de registros)*
    - **Environment Variables:**
      - `APP_ENV`: `production`
      - `APP_KEY`: *(Generar con `php artisan key:generate --show`)*

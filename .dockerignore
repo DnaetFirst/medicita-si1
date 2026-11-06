@@ -8,6 +8,9 @@ tests
 .codex
 .agents
 storage/logs/*
+storage/npm-cache
+storage/app/private/*
+*.pdf
 storage/framework/cache/data/*
 storage/framework/sessions/*
 storage/framework/views/*

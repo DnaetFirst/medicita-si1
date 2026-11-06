@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
+@include('p4_citas.citas.actions')
+
 <div style="max-width: 820px; margin: 0 auto;">
     <!-- Acciones Superiores (Ocultas al imprimir) -->
     <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -12,24 +14,18 @@
                 Código Oficial de Cita: <strong>{{ $cita->codigo_ficha }}</strong>
             </p>
         </div>
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
             <button type="button" class="btn btn-secondary" onclick="window.print()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
                 Imprimir Comprobante
             </button>
 
-            @if($cita->estado === 'programada')
-                <form method="POST" action="{{ route('citas.checkin', $cita) }}" style="display: inline;">
-                    @csrf
-                    <button type="submit" class="btn btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                        Registrar Check-in (Recepción)
-                    </button>
-                </form>
-            @endif
 
-            <a href="{{ route('citas.index') }}" class="btn btn-secondary">
-                Volver al Tablero
+
+
+
+            <a href="{{ auth()->user()->isPaciente() ? route('citas.mis_citas') : route('citas.index') }}" class="btn btn-secondary">
+                &larr; {{ auth()->user()->isPaciente() ? 'Mis Citas' : 'Volver al Tablero' }}
             </a>
         </div>
     </div>
@@ -63,19 +59,21 @@
                         $badgeClass = match($cita->estado) {
                             'programada' => 'badge-info',
                             'confirmada' => 'badge-primary',
-                            'en_curso' => 'badge-warning',
+                            'en_atencion' => 'badge-warning',
                             'atendida' => 'badge-success',
                             'cancelada' => 'badge-danger',
-                            'no_asistio' => 'badge-danger',
+                            'inasistencia' => 'badge-danger',
                             default => 'badge-secondary',
                         };
                         $estadoLabel = match($cita->estado) {
                             'programada' => 'PROGRAMADA (PENDIENTE CHECK-IN)',
-                            'confirmada' => 'CONFIRMADA EN RECEPCIÓN',
-                            'en_curso' => 'EN CONSULTA MÉDICA',
+                            'confirmada' => 'CONFIRMADA POR EL PACIENTE',
+                            'en_espera' => 'EN ESPERA',
+                            'postergada' => 'POSTERGADA',
+                            'en_atencion' => 'EN CONSULTA MÉDICA',
                             'atendida' => 'ATENCIÓN CONCLUIDA',
                             'cancelada' => 'CITA CANCELADA',
-                            'no_asistio' => 'NO ASISTIÓ',
+                            'inasistencia' => 'NO ASISTIÓ',
                             default => strtoupper($cita->estado),
                         };
                     @endphp
@@ -155,7 +153,7 @@
         </div>
 
         <!-- Motivo y Observaciones Clínicas -->
-        @if($cita->motivo_consulta)
+        @if($cita->motivo_consulta && auth()->user()->isMedico())
             <div style="margin-bottom: 1.5rem;">
                 <h4 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); margin: 0 0 0.4rem 0;">
                     Motivo de Consulta Indicado:
@@ -166,7 +164,7 @@
             </div>
         @endif
 
-        @if($cita->observaciones_atencion)
+        @if($cita->observaciones_atencion && auth()->user()->isMedico())
             <div style="margin-bottom: 1.5rem; background: var(--color-surface-hover); padding: 1rem; border-radius: var(--radius-md); border-left: 3px solid var(--color-success);">
                 <h4 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--color-success); margin: 0 0 0.4rem 0;">
                     Diagnóstico y Observaciones de la Atención:

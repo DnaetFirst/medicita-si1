@@ -8,6 +8,7 @@ use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SlotGeneratorService
 {
@@ -16,7 +17,7 @@ class SlotGeneratorService
         $inicio = Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio);
         $fin = Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_fin);
 
-        return BloqueoAgenda::where('medico_id', $slot->medico_id)
+        return BloqueoAgenda::whereNull('levantado_at')->where('medico_id', $slot->medico_id)
             ->whereDate('fecha_inicio', '<=', $slot->fecha)
             ->whereDate('fecha_fin', '>=', $slot->fecha)
             ->get()->contains(function (BloqueoAgenda $bloqueo) use ($inicio, $fin): bool {
@@ -45,6 +46,12 @@ class SlotGeneratorService
         if ($estado === 'disponible' && $this->estaBloqueado($slot)) {
             $estado = 'bloqueado';
         }
+        if (Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio)->lte(now())) {
+            $estado = 'bloqueado';
+        }
+        if ($slot->cita()->exists()) {
+            $estado = 'reservado';
+        }
         $query = Slot::whereKey($slot->id);
         if ($preservarReserva) {
             $query->where('estado', '!=', 'reservado');
@@ -53,6 +60,15 @@ class SlotGeneratorService
     }
 
     public function generarSlotsParaFecha(Medico $medico, string $fecha): Collection
+    {
+        return DB::transaction(function () use ($medico, $fecha): Collection {
+            Medico::whereKey($medico->id)->lockForUpdate()->firstOrFail();
+
+            return $this->sincronizarFecha($medico, $fecha);
+        }, 3);
+    }
+
+    protected function sincronizarFecha(Medico $medico, string $fecha): Collection
     {
         $fechaCarbon = Carbon::parse($fecha);
         $horario = HorarioAtencion::where('medico_id', $medico->id)

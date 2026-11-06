@@ -32,8 +32,8 @@ class CheckRole
 
         $userRole = $user->rol?->slug;
 
-        // Superadministrador y Administrador tienen acceso total irrestricto
-        if (in_array($userRole, ['admin', 'superadmin'])) {
+        // El superadministrador comparte el alcance administrativo, sin privilegios clínicos.
+        if ($userRole === 'superadmin' && in_array('admin', $roles)) {
             return $next($request);
         }
 

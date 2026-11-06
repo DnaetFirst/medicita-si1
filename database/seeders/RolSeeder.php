@@ -10,6 +10,7 @@ class RolSeeder extends Seeder
     public function run(): void
     {
         $roles = [
+            ['nombre' => 'Laboratorio', 'slug' => 'lab', 'descripcion' => 'Órdenes y resultados autorizados', 'permisos' => ['laboratorio.*'], 'activo' => true],
             [
                 'nombre' => 'Superusuario (Acceso Total)',
                 'slug' => 'superadmin',

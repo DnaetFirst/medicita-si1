@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/app.css">
     <style>
         /* Inline fallback in case assets not built */
@@ -53,6 +54,12 @@
             </header>
 
             <main class="page-body">
+                @if(session('success_html'))
+                    <div class="card" style="background: var(--color-success-bg, #f0fdf4); border-color: var(--color-success, #16a34a); color: var(--color-success, #16a34a); padding: 0.85rem 1.25rem; line-height: 1.6;">
+                        {!! session('success_html') !!}
+                    </div>
+                @endif
+
                 @if(session('success'))
                     <div class="card" style="background: var(--color-success-bg); border-color: var(--color-success); color: var(--color-success); padding: 0.75rem 1rem;">
                         {{ session('success') }}

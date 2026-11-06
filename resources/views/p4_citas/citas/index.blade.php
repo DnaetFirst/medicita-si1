@@ -10,10 +10,10 @@
             Gestión de turnos, check-in en sala de espera, transiciones de atención médica y cancelaciones
         </p>
     </div>
-    <a href="{{ route('citas.nueva') }}" class="btn btn-primary" style="box-shadow: 0 4px 10px rgba(13, 124, 124, 0.2);">
+    @unless(auth()->user()->isMedico())<a href="{{ route('citas.nueva') }}" class="btn btn-primary" style="box-shadow: 0 4px 10px rgba(13, 124, 124, 0.2);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
         Solicitar Ficha / Nueva Cita (CU8)
-    </a>
+    </a>@endunless
 </div>
 
 <!-- KPIs del Día -->
@@ -73,11 +73,11 @@
             <select name="estado" class="form-input" style="width: 100%;">
                 <option value="">Todos los Estados</option>
                 <option value="programada" {{ ($filters['estado'] ?? '') === 'programada' ? 'selected' : '' }}>Programada</option>
-                <option value="confirmada" {{ ($filters['estado'] ?? '') === 'confirmada' ? 'selected' : '' }}>En Espera (Check-in)</option>
-                <option value="en_curso" {{ ($filters['estado'] ?? '') === 'en_curso' ? 'selected' : '' }}>En Consulta</option>
+                <option value="confirmada" {{ ($filters['estado'] ?? '') === 'confirmada' ? 'selected' : '' }}>Confirmada</option><option value="en_espera" @selected(request("estado") === "en_espera")>En espera</option><option value="postergada" @selected(request("estado") === "postergada")>Postergada</option>
+                <option value="en_atencion" {{ ($filters['estado'] ?? '') === 'en_atencion' ? 'selected' : '' }}>En Consulta</option>
                 <option value="atendida" {{ ($filters['estado'] ?? '') === 'atendida' ? 'selected' : '' }}>Atendida</option>
                 <option value="cancelada" {{ ($filters['estado'] ?? '') === 'cancelada' ? 'selected' : '' }}>Cancelada</option>
-                <option value="no_asistio" {{ ($filters['estado'] ?? '') === 'no_asistio' ? 'selected' : '' }}>No Asistió</option>
+                <option value="inasistencia" {{ ($filters['estado'] ?? '') === 'inasistencia' ? 'selected' : '' }}>No Asistió</option>
             </select>
         </div>
 
@@ -140,19 +140,19 @@
                                 $badgeClass = match($cita->estado) {
                                     'programada' => 'badge-info',
                                     'confirmada' => 'badge-primary',
-                                    'en_curso' => 'badge-warning',
+                                    'en_atencion' => 'badge-warning',
                                     'atendida' => 'badge-success',
                                     'cancelada' => 'badge-danger',
-                                    'no_asistio' => 'badge-danger',
+                                    'inasistencia' => 'badge-danger',
                                     default => 'badge-secondary',
                                 };
                                 $estadoLabel = match($cita->estado) {
                                     'programada' => 'Programada',
-                                    'confirmada' => 'En Espera (Check-in)',
-                                    'en_curso' => 'En Consulta',
+                                    'confirmada' => 'Confirmada', 'en_espera' => 'En espera', 'postergada' => 'Postergada',
+                                    'en_atencion' => 'En Consulta',
                                     'atendida' => 'Atendida',
                                     'cancelada' => 'Cancelada',
-                                    'no_asistio' => 'No Asistió',
+                                    'inasistencia' => 'No Asistió',
                                     default => ucfirst($cita->estado),
                                 };
                             @endphp
@@ -172,47 +172,7 @@
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                                 </a>
 
-                                <!-- Check-in Recepción (CU10) -->
-                                @if($cita->estado === 'programada')
-                                    <form method="POST" action="{{ route('citas.inasistencia', $cita) }}" style="display: inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-secondary">No asistio</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('citas.checkin', $cita) }}" style="display: inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-primary" title="Registrar llegada del paciente a recepción">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                                            Check-in
-                                        </button>
-                                    </form>
-                                @endif
 
-                                <!-- Iniciar Consulta Médico (CU10) -->
-                                @if($cita->estado === 'confirmada')
-                                    <form method="POST" action="{{ route('citas.iniciar', $cita) }}" style="display: inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-secondary" style="color: #d97706; font-weight: 600;" title="Llamar a consultorio médico">
-                                            Iniciar Consulta
-                                        </button>
-                                    </form>
-                                @endif
-
-                                <!-- Finalizar Consulta (CU10) -->
-                                @if($cita->estado === 'en_curso')
-                                    <button type="button" class="btn btn-sm btn-success" onclick="abrirModalFinalizar({{ $cita->id }}, '{{ $cita->codigo_ficha }}')">
-                                        Concluir Atención
-                                    </button>
-                                @endif
-
-                                <!-- Reprogramar o Cancelar (CU11) -->
-                                @if(in_array($cita->estado, ['programada', 'confirmada']))
-                                    <a href="{{ route('citas.reprogramar', $cita) }}" class="btn btn-sm btn-secondary" title="Reprogramar Turno (CU11)">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger" title="Cancelar Cita" onclick="abrirModalCancelar({{ $cita->id }}, '{{ $cita->codigo_ficha }}')">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    </button>
-                                @endif
                             </div>
                         </td>
                     </tr>
@@ -234,86 +194,5 @@
     @endif
 </div>
 
-<!-- Modal para Cancelar Cita con Motivo Obligatorio (CU11) -->
-<div id="modalCancelar" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
-    <div class="card" style="width: 100%; max-width: 480px; padding: 1.5rem; margin: 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--color-danger); margin: 0;">
-                Cancelar Cita Médica (CU11)
-            </h3>
-            <button type="button" onclick="cerrarModalCancelar()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--color-text-muted);">&times;</button>
-        </div>
 
-        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 1rem;">
-            Al cancelar la cita <strong id="lblCodigoCancelar"></strong>, el turno de 15 minutos quedará inmediatamente liberado para otros pacientes.
-        </p>
-
-        <form id="formCancelarCita" method="POST" action="">
-            @csrf
-            <div style="margin-bottom: 1.25rem;">
-                <label class="form-label">Motivo de Cancelación (Obligatorio) *</label>
-                <textarea name="motivo_cancelacion" class="form-input" required rows="3" placeholder="Ej. Solicitud del paciente por viaje imprevisto, reprogramación médica, etc."></textarea>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-                <button type="button" class="btn btn-secondary" onclick="cerrarModalCancelar()">
-                    Volver
-                </button>
-                <button type="submit" class="btn btn-danger">
-                    Confirmar Cancelación y Liberar Turno
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal para Concluir Atención Médica (CU10) -->
-<div id="modalFinalizar" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
-    <div class="card" style="width: 100%; max-width: 520px; padding: 1.5rem; margin: 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--color-success); margin: 0;">
-                Concluir Atención Médica (CU10)
-            </h3>
-            <button type="button" onclick="cerrarModalFinalizar()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--color-text-muted);">&times;</button>
-        </div>
-
-        <form id="formFinalizarCita" method="POST" action="">
-            @csrf
-            <div style="margin-bottom: 1.25rem;">
-                <label class="form-label">Diagnóstico / Observaciones de la Consulta</label>
-                <textarea name="observaciones_atencion" class="form-input" rows="4" placeholder="Ej. Paciente acude por cuadro gripal de 3 días de evolución. Se prescribe tratamiento sintomático y reposo..."></textarea>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-                <button type="button" class="btn btn-secondary" onclick="cerrarModalFinalizar()">
-                    Cancelar
-                </button>
-                <button type="submit" class="btn btn-success">
-                    Guardar Ficha y Finalizar Cita
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-function abrirModalCancelar(id, codigo) {
-    document.getElementById('lblCodigoCancelar').innerText = codigo;
-    document.getElementById('formCancelarCita').action = `/citas/${id}/cancelar`;
-    document.getElementById('modalCancelar').style.display = 'flex';
-}
-
-function cerrarModalCancelar() {
-    document.getElementById('modalCancelar').style.display = 'none';
-}
-
-function abrirModalFinalizar(id, codigo) {
-    document.getElementById('formFinalizarCita').action = `/citas/${id}/finalizar`;
-    document.getElementById('modalFinalizar').style.display = 'flex';
-}
-
-function cerrarModalFinalizar() {
-    document.getElementById('modalFinalizar').style.display = 'none';
-}
-</script>
 @endsection

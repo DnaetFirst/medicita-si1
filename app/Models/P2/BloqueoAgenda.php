@@ -11,6 +11,7 @@ class BloqueoAgenda extends Model
     protected $table = 'bloqueos_agenda';
 
     protected $fillable = [
+        'levantado_at',
         'medico_id',
         'fecha_inicio',
         'fecha_fin',
@@ -20,6 +21,7 @@ class BloqueoAgenda extends Model
     ];
 
     protected $casts = [
+        'levantado_at' => 'datetime',
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
     ];

@@ -92,13 +92,13 @@
                             {{ $b->registradoPor?->name ?? 'Sistema' }}
                         </td>
                         <td style="padding: 1rem 1.25rem; text-align: right;">
-                            <form action="{{ route('bloqueos.destroy', $b) }}" method="POST" onsubmit="return confirm('¿Estás seguro de levantar este bloqueo? Los slots volverán a estar disponibles.');">
+                            @if(!$b->levantado_at)<form action="{{ route('bloqueos.destroy', $b) }}" method="POST" onsubmit="return confirm('¿Estás seguro de levantar este bloqueo? Los slots volverán a estar disponibles.');">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--color-danger);">
                                     Levantar Bloqueo
                                 </button>
-                            </form>
+                            </form>@else<span class="badge">Levantado {{ $b->levantado_at->format('d/m/Y H:i') }}</span>@endif
                         </td>
                     </tr>
                 @empty

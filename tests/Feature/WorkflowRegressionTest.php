@@ -131,7 +131,7 @@ class WorkflowRegressionTest extends TestCase
         return [
             'start before checkin' => ['programada', 'iniciar'],
             'finish before starting' => ['confirmada', 'finalizar'],
-            'absent after arrival' => ['confirmada', 'inasistencia'],
+            'absent after arrival' => ['en_espera', 'inasistencia'],
             'restart completed' => ['atendida', 'iniciar'],
             'finish cancelled' => ['cancelada', 'finalizar'],
             'absent completed' => ['atendida', 'inasistencia'],
@@ -143,6 +143,7 @@ class WorkflowRegressionTest extends TestCase
     {
         $cita = $this->appointment();
         $cita->update(['estado' => $state]);
+        $this->actingAs($action === 'inasistencia' ? User::where('email', 'recepcion@medicita.com')->firstOrFail() : $this->medico->user);
         $this->post(route('citas.'.$action, $cita))->assertUnprocessable();
         $this->assertSame($state, $cita->fresh()->estado);
     }
@@ -151,8 +152,9 @@ class WorkflowRegressionTest extends TestCase
     {
         $cita = $this->appointment();
         $cita->update(['estado' => 'atendida']);
-        $this->post(route('citas.checkin', $cita))->assertSessionHas('error');
-        $this->post(route('citas.reprogramar.post', $cita), ['nuevo_slot_id' => $this->slot->id, 'motivo_reprogramacion' => 'Cambio'])->assertUnprocessable();
+        $this->actingAs(User::where('email', 'recepcion@medicita.com')->firstOrFail());
+        $this->post(route('citas.checkin', $cita))->assertUnprocessable();
+        $this->post(route('citas.reprogramar.post', $cita), ['aceptacion_paciente' => 1, 'nuevo_slot_id' => $this->slot->id, 'motivo_reprogramacion' => 'Cambio'])->assertUnprocessable();
         $this->assertSame('atendida', $cita->fresh()->estado);
         $this->assertDatabaseCount('citas', 1);
     }
@@ -171,7 +173,7 @@ class WorkflowRegressionTest extends TestCase
         $this->assertSame('disponible', $outside->fresh()->estado);
         $this->delete(route('bloqueos.destroy', $first))->assertRedirect();
         $this->assertSame('bloqueado', $this->slot->fresh()->estado);
-        $this->delete(route('bloqueos.destroy', BloqueoAgenda::firstOrFail()))->assertRedirect();
+        $this->delete(route('bloqueos.destroy', BloqueoAgenda::whereNull('levantado_at')->firstOrFail()))->assertRedirect();
         $this->assertSame('disponible', $this->slot->fresh()->estado);
     }
 
@@ -259,21 +261,22 @@ class WorkflowRegressionTest extends TestCase
         $this->actingAs($this->medico->user);
         $this->get(route('citas.show', $cita))->assertOk();
         $this->get(route('agenda.show'))->assertOk();
-        $this->get(route('dashboard'))->assertOk()->assertDontSee('href="/usuarios"', false);
+        $this->followingRedirects()->get(route('dashboard'))->assertOk()->assertDontSee('href="/usuarios"', false);
         $this->get(route('usuarios.index'))->assertForbidden();
     }
 
     public function test_patient_and_reception_navigation_match_permissions(): void
     {
         $this->actingAs($this->paciente->user);
-        $this->get(route('dashboard'))->assertOk()->assertDontSee('href="/citas/nueva"', false);
+        $this->followingRedirects()->get(route('dashboard'))->assertOk()->assertDontSee('href="/usuarios"', false);
+        $this->get(route('citas.index'))->assertForbidden();
         $this->get(route('pacientes.index'))->assertForbidden();
         $this->actingAs(User::where('email', 'recepcion@medicita.com')->firstOrFail());
-        $this->get(route('dashboard'))->assertOk()->assertDontSee('href="/usuarios"', false);
+        $this->followingRedirects()->get(route('dashboard'))->assertOk()->assertDontSee('href="/usuarios"', false);
         $this->get(route('bitacora.index'))->assertForbidden();
     }
 
-    public function test_rescheduling_can_be_repeated_without_reusing_cancelled_appointment(): void
+    public function test_rescheduling_can_be_repeated_while_preserving_appointment_identity(): void
     {
         $original = $this->appointment();
         $newSlot = $this->slot->replicate();
@@ -281,11 +284,12 @@ class WorkflowRegressionTest extends TestCase
         $newSlot->hora_fin = '10:15';
         $newSlot->estado = 'disponible';
         $newSlot->save();
-        $this->post(route('citas.reprogramar.post', $original), ['nuevo_slot_id' => $newSlot->id, 'motivo_reprogramacion' => 'Cambio de horario'])->assertRedirect();
+        $this->post(route('citas.reprogramar.post', $original), ['aceptacion_paciente' => 1, 'nuevo_slot_id' => $newSlot->id, 'motivo_reprogramacion' => 'Cambio de horario'])->assertRedirect();
         $replacement = Cita::where('slot_id', $newSlot->id)->firstOrFail();
-        $this->post(route('citas.reprogramar.post', $original), ['nuevo_slot_id' => $this->slot->id, 'motivo_reprogramacion' => 'Reintento'])->assertUnprocessable();
-        $this->post(route('citas.reprogramar.post', $replacement), ['nuevo_slot_id' => $this->slot->id, 'motivo_reprogramacion' => 'Volver al horario original'])->assertRedirect();
-        $this->assertDatabaseCount('citas', 3);
+        $this->assertSame($original->id, $replacement->id);
+        $this->post(route('citas.reprogramar.post', $replacement), ['aceptacion_paciente' => 1, 'nuevo_slot_id' => $this->slot->id, 'motivo_reprogramacion' => 'Volver al horario original'])->assertRedirect();
+        $this->assertDatabaseCount('citas', 1);
+        $this->assertDatabaseCount('historial_citas', 3);
         $this->assertSame('reservado', $this->slot->fresh()->estado);
         $this->assertSame('disponible', $newSlot->fresh()->estado);
     }

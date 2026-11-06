@@ -3,12 +3,15 @@
 namespace App\Models\P2;
 
 use App\Models\P4\Cita;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Slot extends Model
 {
+    use HasFactory;
+
     protected $table = 'slots';
 
     protected $fillable = [
@@ -36,7 +39,7 @@ class Slot extends Model
 
     public function cita(): HasOne
     {
-        return $this->hasOne(Cita::class, 'slot_id')->where('estado', '!=', 'cancelada');
+        return $this->hasOne(Cita::class, 'slot_id')->whereNotIn('estado', ['cancelada', 'postergada']);
     }
 
     public function isDisponible(): bool
