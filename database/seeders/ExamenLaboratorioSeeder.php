@@ -60,6 +60,26 @@ class ExamenLaboratorioSeeder extends Seeder
                 'tiempo_estimado_horas' => 2,
                 'activo' => true,
             ],
+            [
+                'codigo' => 'HBA1C-001',
+                'nombre' => 'Hemoglobina Glicosilada (HbA1c)',
+                'categoria' => 'Bioquímica Clínica',
+                'descripcion' => 'Monitoreo retrospectivo del control glucémico en los últimos 3 meses.',
+                'unidad_medida' => '%',
+                'valores_referencia' => '< 5.7% Normal; 5.7 - 6.4% Prediabetes; >= 6.5% Diabetes',
+                'tiempo_estimado_horas' => 6,
+                'activo' => true,
+            ],
+            [
+                'codigo' => 'UROC-001',
+                'nombre' => 'Urocultivo con Antibiograma',
+                'categoria' => 'Microbiología',
+                'descripcion' => 'Identificación de patógenos bacterianos en orina y sensibilidad antibiótica.',
+                'unidad_medida' => 'UFC/mL',
+                'valores_referencia' => '< 10,000 UFC/mL (Negativo)',
+                'tiempo_estimado_horas' => 48,
+                'activo' => true,
+            ],
         ];
 
         foreach ($examenes as $examen) {

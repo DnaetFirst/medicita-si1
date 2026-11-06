@@ -14,5 +14,9 @@ class DatabaseSeeder extends Seeder
             UsuarioSeeder::class,
             ExamenLaboratorioSeeder::class,
         ]);
+
+        if (! app()->runningUnitTests()) {
+            $this->call(DemostracionCompletaSeeder::class);
+        }
     }
 }
