@@ -280,12 +280,16 @@ class AiReporteService
      */
     public function generarSqlConGemini(string $pregunta): ?string
     {
+        if (app()->runningUnitTests()) {
+            return null;
+        }
+
         $apiKey = config('services.gemini.key') ?: env('GEMINI_API_KEY');
         if (empty($apiKey)) {
             return null;
         }
 
-        $model = config('services.gemini.model', 'gemini-1.5-flash');
+        $model = config('services.gemini.model', 'gemini-flash-lite-latest');
 
         $systemPrompt = <<<'PROMPT'
 Eres el motor de IA analítico para el sistema médico MediCita Pro.
@@ -302,13 +306,14 @@ REGLAS DE SEGURIDAD ESTRICTAS:
 - Si el usuario pide "todos los médicos registrados" o información de médicos con especialidades, consulta SIEMPRE vista_reporte_medicos.
 - Si el usuario solicita excluir columnas ("sin teléfono", "sin matrícula", "no me muestres X"), OMITE esas columnas del SELECT.
 - Si el usuario pide columnas específicas ("solo nombre y especialidad"), incluye ÚNICAMENTE esas columnas en el SELECT.
+- En filtros WHERE para 'estado', usa SIEMPRE valores en minúsculas: 'cancelada', 'confirmada', 'programada', 'atendida', 'completada', 'en_espera', 'inasistencia'.
 - NUNCA consultes la tabla 'users' directamente, ni historias clínicas confidenciales.
 - Solo sentencias SELECT.
 PROMPT;
 
         try {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}";
-            $response = Http::timeout(6)->post($url, [
+            $response = Http::withoutVerifying()->timeout(10)->post($url, [
                 'contents' => [
                     [
                         'role' => 'user',
