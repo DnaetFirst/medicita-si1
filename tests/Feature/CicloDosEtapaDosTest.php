@@ -118,7 +118,9 @@ class CicloDosEtapaDosTest extends TestCase
     {
         Queue::fake([EnviarAviso::class]);
         $lab = $this->usuario('lab');
-        $orden = OrdenLaboratorio::factory()->create();
+        $pac = $this->usuario('paciente');
+        $paciente = Paciente::factory()->create(['user_id' => $pac->id]);
+        $orden = OrdenLaboratorio::factory()->create(['paciente_id' => $paciente->id]);
         $ex = ExamenLaboratorio::factory()->create();
         $orden->examenes()->attach($ex->id, ['estado' => 'pendiente']);
 
@@ -305,7 +307,9 @@ class CicloDosEtapaDosTest extends TestCase
         $medico = Medico::factory()->create(['especialidad_id' => $esp->id]);
         $slot = Slot::factory()->create(['medico_id' => $medico->id, 'fecha' => '2026-11-10', 'hora_inicio' => '10:00', 'hora_fin' => '10:15', 'estado' => 'disponible']);
 
-        $c1 = ListaEspera::factory()->create(['especialidad_id' => $esp->id, 'fecha_desde' => '2026-11-08', 'fecha_hasta' => '2026-11-15', 'fecha_inscripcion' => '2026-11-05']);
+        $pac1 = $this->usuario('paciente');
+        $paciente1 = Paciente::factory()->create(['user_id' => $pac1->id]);
+        $c1 = ListaEspera::factory()->create(['paciente_id' => $paciente1->id, 'especialidad_id' => $esp->id, 'fecha_desde' => '2026-11-08', 'fecha_hasta' => '2026-11-15', 'fecha_inscripcion' => '2026-11-05']);
         $c2 = ListaEspera::factory()->create(['especialidad_id' => $esp->id, 'fecha_desde' => '2026-11-08', 'fecha_hasta' => '2026-11-15', 'fecha_inscripcion' => '2026-11-06']);
 
         $servicio = app(RecuperacionCupoService::class);

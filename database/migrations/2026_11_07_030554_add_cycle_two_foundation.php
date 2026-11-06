@@ -106,6 +106,9 @@ return new class extends Migration
             $table->unsignedInteger('intentos')->default(0);
             $table->timestamp('enviado_at')->nullable();
         });
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_cancelaciones');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_ocupacion');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_citas');
         DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
         DB::statement("CREATE UNIQUE INDEX citas_active_slot_unique ON citas (slot_id) WHERE estado NOT IN ('cancelada', 'postergada')");
         foreach ($procedencias as $id => $anteriorId) {
@@ -119,6 +122,9 @@ return new class extends Migration
         if (DB::table('historial_citas')->exists() || DB::table('atenciones_medicas')->exists() || DB::table('historias_clinicas')->exists()) {
             throw new RuntimeException('La etapa 1 contiene registros. Restaura un respaldo verificado para revertir sin perderlos.');
         }
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_cancelaciones');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_ocupacion');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_citas');
         DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
         Schema::table('notificaciones', fn (Blueprint $table) => $table->dropUnique(['evento_id']));
         Schema::table('citas', function (Blueprint $table): void {

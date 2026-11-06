@@ -291,6 +291,8 @@ class LaboratorioController extends Controller
 
             if ($todosInformados) {
                 $orden->update(['estado' => 'finalizada']);
+            } else {
+                $orden->update(['estado' => 'en_proceso']);
             }
 
             // Notificación al paciente y tutores autorizados

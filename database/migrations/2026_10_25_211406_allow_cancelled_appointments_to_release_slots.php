@@ -9,9 +9,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('citas', function (Blueprint $table): void {
-            $table->dropUnique(['slot_id']);
-        });
+        try {
+            Schema::table('citas', function (Blueprint $table): void {
+                $table->dropUnique(['slot_id']);
+            });
+        } catch (\Throwable) {
+            // Unconditional unique dropped or not present
+        }
+
+        DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
         DB::statement("CREATE UNIQUE INDEX citas_active_slot_unique ON citas (slot_id) WHERE estado <> 'cancelada'");
     }
 

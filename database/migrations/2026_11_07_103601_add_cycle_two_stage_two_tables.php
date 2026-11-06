@@ -120,6 +120,10 @@ return new class extends Migration
             $table->foreignId('oferta_cupo_id')->nullable()->constrained('ofertas_cupo')->restrictOnDelete();
             $table->boolean('es_cupo_recuperado')->default(false);
         });
+
+        // Re-establecer el índice condicional para SQLite y PostgreSQL (evita que la recreación de tabla elimine la cláusula WHERE)
+        \Illuminate\Support\Facades\DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
+        \Illuminate\Support\Facades\DB::statement("CREATE UNIQUE INDEX citas_active_slot_unique ON citas (slot_id) WHERE estado NOT IN ('cancelada', 'postergada')");
     }
 
     public function down(): void

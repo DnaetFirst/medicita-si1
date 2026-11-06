@@ -1,23 +1,23 @@
 # HANDOFF.md — Multi-Agent Task Synchronization
 
 ## Completed
-- Audited and updated AGENTS.md, CONTEXT.md, HANDOFF.md, and README.md with strict cross-DB and role rules.
-- Coded Cycle 2 Stage 1 (CU13 History, CU14 Clinical Records) and Stage 2 (CU15 Lab, CU18 Waitlist Recovery).
-- Added migrations `2026_11_07_030554` and `2026_11_07_103601` with P3/P4/P5 Eloquent models and factories.
-- Implemented `CitaWorkflowService`, `AccesoPacienteService`, and `RecuperacionCupoService` (10-min FIFO hold).
-- Created controllers, Blade views, console scheduler, and test suites (`CicloDosEtapaUnoTest`, `CicloDosEtapaDosTest`).
-- Verified all PHP files with `php -l` and tested package dependencies.
+- Implemented Cycle 2 Stage 3: CU17 AI-assisted analytical reports and production hardening.
+- Created migration `2026_11_07_120000` adding table `reportes_ia` and read-only views (`vista_reporte_citas`, `vista_reporte_ocupacion`, `vista_reporte_cancelaciones`).
+- Built `ReporteIndicadoresService` calculating operational KPIs (attendance, cancellations, no-shows, slot occupancy, recovered slots) and streaming structured UTF-8 CSVs.
+- Built `AiReporteService` featuring strict AST SQL validator (single `SELECT` only, blocks DDL/DML, comments, introspection, and clinical tables; enforces `LIMIT 100`) with audit tracking.
+- Created `ReporteController` with printable PDF layout, Web Speech API voice input, and AJAX endpoints.
+- Updated `components/sidebar.blade.php` with navigation and created `ReporteIaFactory`.
+- Created and passed test suite `CicloDosEtapaTresTest` (9 tests, 57 assertions). All 43 CicloDos tests pass.
 
 ## Modified Files
-- `AGENTS.md`, `CONTEXT.md`, `HANDOFF.md`, `README.md`
-- `database/migrations/2026_11_07_030554_*`, `database/migrations/2026_11_07_103601_*`
-- `app/Models/P3/*`, `app/Models/P4/*`, `app/Models/P5/*`
-- `app/Services/AccesoPacienteService.php`, `app/Services/RecuperacionCupoService.php`, `app/Services/CitaWorkflowService.php`
-- `app/Http/Controllers/P3_Pacientes/*`, `app/Http/Controllers/P4_Citas/*`, `app/Http/Controllers/P5_Laboratorio/*`
-- `resources/views/p3_pacientes/*`, `resources/views/p4_citas/*`, `resources/views/p5_laboratorio/*`
-- `tests/Feature/CicloDosEtapaUnoTest.php`, `tests/Feature/CicloDosEtapaDosTest.php`, `tests/Feature/CicloDosMigracionTest.php`
+- `database/migrations/2026_11_07_120000_create_cycle_two_stage_three_tables_and_views.php`
+- `app/Models/P6/ReporteIa.php`, `database/factories/P6/ReporteIaFactory.php`
+- `app/Services/ReporteIndicadoresService.php`, `app/Services/AiReporteService.php`
+- `app/Http/Controllers/P6_Reportes/ReporteController.php`
+- `resources/views/p6_reportes/index.blade.php`, `resources/views/p6_reportes/print_pdf.blade.php`
+- `routes/web.php`, `resources/views/components/sidebar.blade.php`
+- `tests/Feature/CicloDosEtapaTresTest.php`, `CONTEXT.md`, `HANDOFF.md`
 
 ## Next Step / Pending
-1. Commit working tree changes for Stage 1 & 2 (`git commit -m "feat(ciclo2): implement stage 1 and stage 2"`).
-2. Implement Stage 3: CU17 AI-assisted analytical reports (`reportes_ia`, read-only views, SQL AST validation, CSV/PDF export).
-3. Finalize cloud deployment verification (process roles, Dockerfile, Neon TLS).
+1. Stage and commit Stage 3 changes (`git commit -m "feat(ciclo2): implement Stage 3 AI reports (CU17) and analytical views"`).
+2. Final review of production Docker and Render configuration for deployment to Neon PostgreSQL.

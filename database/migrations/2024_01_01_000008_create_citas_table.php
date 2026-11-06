@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('codigo_ficha', 30)->unique(); // Ej: FCH-20261024-0001
             $table->foreignId('paciente_id')->constrained('pacientes');
             $table->foreignId('medico_id')->constrained('medicos');
-            $table->foreignId('slot_id')->unique()->constrained('slots');
+            $table->foreignId('slot_id')->constrained('slots');
             $table->date('fecha');
             $table->time('hora');
             $table->string('estado', 20)->default('programada'); // programada, confirmada, en_curso, atendida, cancelada

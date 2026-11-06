@@ -19,6 +19,9 @@ class CicloDosMigracionTest extends TestCase
         $this->seed(RolSeeder::class);
         $original = Cita::factory()->create(['estado' => 'cancelada']);
         $reprogramada = Cita::factory()->create(['estado' => 'confirmada', 'reprogramada_de_id' => $original->id]);
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_cancelaciones');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_ocupacion');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_citas');
         $migracion = require database_path('migrations/2026_11_07_030554_add_cycle_two_foundation.php');
         $migracion->down();
         DB::table('citas')->where('id', $reprogramada->id)->update(['hora_checkin' => '2026-11-07 13:00:00']);
@@ -38,6 +41,9 @@ class CicloDosMigracionTest extends TestCase
     {
         $this->seed(RolSeeder::class);
         $nota = AtencionMedica::factory()->create();
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_cancelaciones');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_ocupacion');
+        DB::statement('DROP VIEW IF EXISTS vista_reporte_citas');
         $migracion = require database_path('migrations/2026_11_07_030554_add_cycle_two_foundation.php');
         try {
             $migracion->down();

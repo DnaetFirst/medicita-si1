@@ -15,6 +15,7 @@ use App\Http\Controllers\P4_Citas\CitaController;
 use App\Http\Controllers\P4_Citas\CitaWizardController;
 use App\Http\Controllers\P4_Citas\EsperaController;
 use App\Http\Controllers\P5_Laboratorio\LaboratorioController;
+use App\Http\Controllers\P6_Reportes\ReporteController;
 use App\Http\Controllers\P7_Notificaciones\AvisoController;
 use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
@@ -201,6 +202,16 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
         Route::get('/agenda', [AgendaController::class, 'show'])->name('agenda.show');
 
+    });
+
+    // ─────────────────────────────────────────────────────────────────
+    // CU17: Módulo de Reportes Analíticos e Indicadores Clínicos con IA
+    // ─────────────────────────────────────────────────────────────────
+    Route::middleware(['role:admin,recepcionista'])->group(function () {
+        Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+        Route::get('/reportes/exportar/csv', [ReporteController::class, 'exportarCsv'])->name('reportes.csv');
+        Route::get('/reportes/exportar/pdf', [ReporteController::class, 'exportarPdf'])->name('reportes.pdf');
+        Route::post('/reportes/ia/consultar', [ReporteController::class, 'consultarIa'])->name('reportes.ia.consultar');
     });
 
 });
