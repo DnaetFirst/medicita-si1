@@ -16,8 +16,11 @@ class ResultadoLaboratorio extends Model
 
     protected $guarded = ['id'];
 
+    protected $hidden = ['archivo_pdf_contenido'];
+
     protected $casts = [
         'version' => 'integer',
+        'archivo_pdf_contenido' => 'encrypted',
         'fecha_validacion' => 'datetime',
         'fecha_publicacion' => 'datetime',
     ];

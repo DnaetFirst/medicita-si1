@@ -21,6 +21,7 @@ class ReporteIa extends Model
         'motivo_rechazo',
         'filas_retornadas',
         'tiempo_ms',
+        'resultado_snapshot',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class ReporteIa extends Model
         'tiempo_ms' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'resultado_snapshot' => 'encrypted:array',
     ];
 
     public function user(): BelongsTo

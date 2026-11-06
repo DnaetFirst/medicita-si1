@@ -130,11 +130,13 @@ class LaboratorioController extends Controller
      */
     public function showOrden(Request $request, OrdenLaboratorio $orden): View
     {
-        $orden->load(['paciente', 'medico.user', 'examenes', 'resultados.detalles.examen', 'resultados.autor']);
-
         if ($request->user()->rol?->slug !== 'lab') {
-            $this->acceso->autorizar($request->user(), $orden->paciente);
+            abort_unless($request->user()->isMedico() || $request->user()->isPaciente(), 403);
+            abort_unless($this->acceso->pacientesResultados($request->user())->whereKey($orden->paciente_id)->exists(), 403);
         }
+        $orden->load(['paciente', 'medico.user', 'examenes',
+            'resultados' => fn ($query) => $query->when($request->user()->rol?->slug !== 'lab', fn ($resultados) => $resultados->where('estado', 'publicado')),
+            'resultados.detalles.examen', 'resultados.autor']);
 
         return view('p5_laboratorio.ordenes.show', [
             'orden' => $orden,
@@ -181,6 +183,22 @@ class LaboratorioController extends Controller
         ]);
 
         $resultado = DB::transaction(function () use ($request, $orden, $validated): ResultadoLaboratorio {
+            $orden = OrdenLaboratorio::whereKey($orden->id)->lockForUpdate()->firstOrFail();
+            if (! empty($validated['operacion_id']) && ($previo = ResultadoLaboratorio::where('operacion_id', $validated['operacion_id'])->first())) {
+                abort_unless($previo->orden_laboratorio_id === $orden->id && $previo->user_id === $request->user()->id, 409);
+
+                return $previo;
+            }
+            abort_if($orden->estado === 'cancelada' || ($orden->estado === 'finalizada' && empty($validated['corrige_id'])), 422, 'La orden no admite resultados nuevos.');
+            $permitidos = $orden->examenes()->pluck('examenes_laboratorio.id')->all();
+            foreach ($validated['detalles'] as $detalle) {
+                abort_unless(in_array((int) $detalle['examen_laboratorio_id'], $permitidos), 422, 'El examen no pertenece a esta orden.');
+            }
+            if (! empty($validated['corrige_id'])) {
+                $original = ResultadoLaboratorio::whereKey($validated['corrige_id'])->where('orden_laboratorio_id', $orden->id)->lockForUpdate()->firstOrFail();
+                abort_unless($original->isPublicado(), 422, 'Solo se corrigen resultados publicados.');
+                abort_if(ResultadoLaboratorio::where('corrige_id', $original->id)->exists(), 409, 'Este resultado ya tiene una corrección.');
+            }
             $pdfPath = null;
             if ($request->hasFile('archivo_pdf')) {
                 $pdfPath = $request->file('archivo_pdf')->store('laboratorio', 'local');
@@ -203,6 +221,7 @@ class LaboratorioController extends Controller
                 'motivo_correccion' => $validated['motivo_correccion'] ?? null,
                 'estado' => 'borrador',
                 'archivo_pdf_path' => $pdfPath,
+                'archivo_pdf_contenido' => $request->hasFile('archivo_pdf') ? base64_encode($request->file('archivo_pdf')->getContent()) : null,
                 'observaciones' => $validated['observaciones'] ?? null,
                 'operacion_id' => $validated['operacion_id'] ?? (string) Str::uuid(),
             ]);
@@ -246,18 +265,18 @@ class LaboratorioController extends Controller
     public function validarResultado(Request $request, ResultadoLaboratorio $resultado): RedirectResponse
     {
         abort_unless($request->user()->rol?->slug === 'lab', 403);
-        abort_unless($resultado->isBorrador(), 422, 'Solo resultados en borrador pueden ser validados.');
-
-        $resultado->update([
-            'estado' => 'validado',
-            'fecha_validacion' => now(),
-            'validado_por_user_id' => $request->user()->id,
-        ]);
-
-        BitacoraService::registrar('VALIDAR_RESULTADO_LABORATORIO', 'P5_Laboratorio', [
-            'resultado_id' => $resultado->id,
-            'orden_id' => $resultado->orden_laboratorio_id,
-        ]);
+        DB::transaction(function () use ($request, $resultado): void {
+            $orden = OrdenLaboratorio::whereKey($resultado->orden_laboratorio_id)->lockForUpdate()->firstOrFail();
+            $resultado = ResultadoLaboratorio::whereKey($resultado->id)->lockForUpdate()->firstOrFail();
+            if ($resultado->isValidado()) {
+                return;
+            }
+            abort_unless($resultado->isBorrador(), 422, 'Solo resultados en borrador pueden ser validados.');
+            abort_if($orden->estado === 'cancelada', 422, 'La orden está cancelada.');
+            abort_unless($resultado->detalles()->exists(), 422, 'Registra los detalles antes de validar.');
+            $resultado->update(['estado' => 'validado', 'fecha_validacion' => now(), 'validado_por_user_id' => $request->user()->id]);
+            BitacoraService::registrar('VALIDAR_RESULTADO_LABORATORIO', 'P5_Laboratorio', ['resultado_id' => $resultado->id, 'orden_id' => $resultado->orden_laboratorio_id]);
+        }, 3);
 
         return back()->with('success', 'Resultado validado correctamente. Listo para publicación.');
     }
@@ -268,16 +287,21 @@ class LaboratorioController extends Controller
     public function publicarResultado(Request $request, ResultadoLaboratorio $resultado): RedirectResponse
     {
         abort_unless($request->user()->rol?->slug === 'lab', 403);
-        abort_unless($resultado->isValidado(), 422, 'Solo resultados previamente validados pueden ser publicados.');
 
         DB::transaction(function () use ($request, $resultado): void {
+            $orden = OrdenLaboratorio::whereKey($resultado->orden_laboratorio_id)->lockForUpdate()->firstOrFail();
+            $resultado = ResultadoLaboratorio::whereKey($resultado->id)->lockForUpdate()->firstOrFail();
+            if ($resultado->isPublicado()) {
+                return;
+            }
+            abort_unless($resultado->isValidado(), 422, 'Solo resultados previamente validados pueden ser publicados.');
+            abort_if($orden->estado === 'cancelada', 422, 'La orden está cancelada.');
+
             $resultado->update([
                 'estado' => 'publicado',
                 'fecha_publicacion' => now(),
                 'publicado_por_user_id' => $request->user()->id,
             ]);
-
-            $orden = $resultado->orden;
 
             // Marcar los exámenes informados
             $examenesInformados = $resultado->detalles->pluck('examen_laboratorio_id')->unique();
@@ -330,12 +354,21 @@ class LaboratorioController extends Controller
     public function descargarPdf(Request $request, ResultadoLaboratorio $resultado): StreamedResponse
     {
         $this->acceso->autorizarResultado($request->user(), $resultado);
-        abort_unless($resultado->archivo_pdf_path && Storage::disk('local')->exists($resultado->archivo_pdf_path), 404, 'El archivo PDF no está disponible.');
+        abort_unless($resultado->archivo_pdf_contenido || ($resultado->archivo_pdf_path && Storage::disk('local')->exists($resultado->archivo_pdf_path)), 404, 'El archivo PDF no está disponible.');
 
         BitacoraService::registrar('DESCARGAR_PDF_LABORATORIO', 'P5_Laboratorio', [
             'resultado_id' => $resultado->id,
             'archivo' => $resultado->archivo_pdf_path,
         ]);
+
+        if ($resultado->archivo_pdf_contenido) {
+            $contenido = base64_decode($resultado->archivo_pdf_contenido, true);
+            abort_if($contenido === false, 500, 'No se pudo recuperar el documento.');
+
+            return response()->streamDownload(function () use ($contenido): void {
+                echo $contenido;
+            }, "Resultado-{$resultado->codigo_resultado}.pdf", ['Content-Type' => 'application/pdf', 'Cache-Control' => 'private, no-store']);
+        }
 
         return Storage::disk('local')->download($resultado->archivo_pdf_path, "Resultado-{$resultado->codigo_resultado}.pdf");
     }

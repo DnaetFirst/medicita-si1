@@ -136,6 +136,7 @@ class EsperaController extends Controller
      */
     public function aceptar(Request $request, OfertaCupo $oferta): RedirectResponse
     {
+        $request->validate(['operacion_id' => 'nullable|uuid']);
         $cita = $this->recuperacion->aceptarOferta($oferta, $request->user(), $request->input('operacion_id'));
 
         return redirect()->route('citas.show', $cita)->with('success', "¡Turno aceptado exitosamente! Ficha asignada: {$cita->codigo_ficha}.");
@@ -157,13 +158,7 @@ class EsperaController extends Controller
      */
     public function destroy(Request $request, ListaEspera $espera): RedirectResponse
     {
-        $this->acceso->autorizar($request->user(), $espera->paciente);
-        abort_unless($espera->isActiva(), 422, 'La inscripción no se encuentra activa.');
-
-        $espera->update([
-            'estado' => 'cancelada',
-            'motivo_cancelacion' => 'Retirado por el usuario',
-        ]);
+        $this->recuperacion->retirarInscripcion($espera, $request->user());
 
         return redirect()->route('espera.index')->with('success', 'Inscripción en lista de espera cancelada.');
     }

@@ -15,6 +15,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 WORKDIR /var/www/html
 COPY . .
 COPY --from=assets /app/public/build ./public/build
+COPY php-runtime.ini /usr/local/etc/php/conf.d/medicita.ini
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader \
     && chown -R www-data:www-data storage bootstrap/cache \
     && sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \

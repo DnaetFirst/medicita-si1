@@ -1,6 +1,7 @@
 services:
   - type: web
-    name: medicita-si1
+    name: medicita-si1-defensa
+    branch: main
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
@@ -11,8 +12,6 @@ services:
       - key: APP_DEBUG
         value: "false"
       - key: APP_KEY
-        sync: false
-      - key: APP_URL
         sync: false
       - key: APP_TIMEZONE
         value: America/La_Paz
@@ -30,9 +29,11 @@ services:
         value: database
       - key: QUEUE_CONNECTION
         value: sync
+      - key: ENABLE_SCHEDULER
+        value: "true"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-flash-lite-latest
+        value: gemini-3.1-flash-lite
       - key: LOG_CHANNEL
         value: stderr

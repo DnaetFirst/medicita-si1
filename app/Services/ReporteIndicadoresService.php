@@ -22,10 +22,12 @@ class ReporteIndicadoresService
         $query = $this->aplicarFiltros(Cita::query(), $filtros);
 
         $totalCitas = (clone $query)->count();
-        $completadas = (clone $query)->whereIn('estado', ['atendida', 'completada', 'en_atencion'])->count();
+        $completadas = (clone $query)->where('estado', 'atendida')->count();
         $canceladas = (clone $query)->where('estado', 'cancelada')->count();
         $inasistencias = (clone $query)->where('estado', 'inasistencia')->count();
-        $reprogramadas = (clone $query)->where('estado', 'reprogramada')->count();
+        $reprogramadas = (clone $query)->where(function (Builder $citas): void {
+            $citas->whereNotNull('reprogramada_de_id')->orWhereHas('historial', fn (Builder $historial) => $historial->where('operacion', 'REPROGRAMAR'));
+        })->count();
         $postergadas = (clone $query)->where('estado', 'postergada')->count();
         $cuposRecuperados = (clone $query)->where('es_cupo_recuperado', true)->count();
 
@@ -132,7 +134,7 @@ class ReporteIndicadoresService
             $medicoNombre = $c->medico?->user?->name ?? 'N/A';
             $especialidadNombre = $c->medico?->especialidad?->nombre ?? 'N/A';
 
-            fputcsv($output, [
+            fputcsv($output, array_map(static fn (mixed $valor): mixed => is_string($valor) && preg_match('/^[\s]*[=+@-]/u', $valor) ? "'".$valor : $valor, [
                 $c->id,
                 $c->codigo_ficha,
                 $c->fecha ? Carbon::parse($c->fecha)->format('Y-m-d') : '',
@@ -145,7 +147,7 @@ class ReporteIndicadoresService
                 $c->es_cupo_recuperado ? 'SI' : 'NO',
                 $c->motivo_cancelacion ?? '',
                 $c->created_at ? Carbon::parse($c->created_at)->format('Y-m-d H:i') : '',
-            ]);
+            ]), ',', '"', '');
         }
 
         rewind($output);

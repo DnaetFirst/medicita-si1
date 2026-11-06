@@ -35,10 +35,11 @@ class AccesoPacienteService
     public function pacientesResultados(User $user): Builder
     {
         $query = Paciente::query();
-        if ($user->isAdmin()) {
-            return $query;
-        }
         if ($user->isMedico()) {
+            if ($user->medico?->estado !== 'activo') {
+                return $query->whereRaw('1 = 0');
+            }
+
             return $query->whereHas('citas', fn (Builder $citas) => $citas->where('medico_id', $user->medico?->id ?? 0));
         }
         if ($user->isPaciente()) {

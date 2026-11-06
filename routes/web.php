@@ -211,7 +211,10 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
         Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
         Route::get('/reportes/exportar/csv', [ReporteController::class, 'exportarCsv'])->name('reportes.csv');
         Route::get('/reportes/exportar/pdf', [ReporteController::class, 'exportarPdf'])->name('reportes.pdf');
-        Route::post('/reportes/ia/consultar', [ReporteController::class, 'consultarIa'])->name('reportes.ia.consultar');
+        Route::post('/reportes/ia/consultar', [ReporteController::class, 'consultarIa'])->middleware('throttle:10,1')->name('reportes.ia.consultar');
+        Route::post('/reportes/ia/transcribir', [ReporteController::class, 'transcribirAudio'])->middleware('throttle:10,1')->name('reportes.ia.transcribir');
+        Route::get('/reportes/ia/{reporte}/csv', [ReporteController::class, 'exportarIaCsv'])->name('reportes.ia.csv');
+        Route::get('/reportes/ia/{reporte}/pdf', [ReporteController::class, 'exportarIaPdf'])->name('reportes.ia.pdf');
     });
 
 });

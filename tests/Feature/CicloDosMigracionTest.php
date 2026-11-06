@@ -23,6 +23,8 @@ class CicloDosMigracionTest extends TestCase
         DB::statement('DROP VIEW IF EXISTS vista_reporte_ocupacion');
         DB::statement('DROP VIEW IF EXISTS vista_reporte_citas');
         $migracion = require database_path('migrations/2026_11_07_030554_add_cycle_two_foundation.php');
+        $vistasNuevas = require database_path('migrations/2026_11_07_160443_expand_analytical_report_views.php');
+        $vistasNuevas->down();
         $migracion->down();
         DB::table('citas')->where('id', $reprogramada->id)->update(['hora_checkin' => '2026-11-07 13:00:00']);
         $fecha = DB::table('citas')->where('id', $reprogramada->id)->value('fecha');

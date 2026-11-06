@@ -10,8 +10,10 @@
         <div class="cycle-actions">
             @if(auth()->user()->rol?->slug === 'lab')
                 <a class="btn btn-secondary" href="{{ route('laboratorio.ordenes.index') }}">Volver a la bandeja</a>
-            @else
+            @elseif(auth()->user()->isMedico())
                 <a class="btn btn-secondary" href="{{ route('historia.show', $orden->paciente) }}">Historia Clínica</a>
+            @else
+                <a class="btn btn-secondary" href="{{ route('laboratorio.mis_resultados') }}">Mis resultados</a>
             @endif
         </div>
     </div>

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Jobs\EnviarAviso;
+use App\Models\P2\Especialidad;
+use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
@@ -13,6 +15,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class RecuperacionCupoService
 {
@@ -30,8 +33,20 @@ class RecuperacionCupoService
     public function inscribir(Paciente $paciente, array $datos, User $user): ListaEspera
     {
         $this->acceso->autorizar($user, $paciente);
+        abort_unless($paciente->activo, 422, 'El paciente no está activo.');
 
         return DB::transaction(function () use ($paciente, $datos): ListaEspera {
+            Paciente::whereKey($paciente->id)->lockForUpdate()->firstOrFail();
+            if (! empty($datos['operacion_id']) && ($previa = ListaEspera::where('operacion_id', $datos['operacion_id'])->first())) {
+                abort_unless($previa->paciente_id === $paciente->id, 409);
+
+                return $previa;
+            }
+            $especialidad = Especialidad::findOrFail($datos['especialidad_id']);
+            abort_unless($especialidad->activo, 422, 'La especialidad no está disponible.');
+            if (! empty($datos['medico_id'])) {
+                abort_unless(Medico::whereKey($datos['medico_id'])->where('estado', 'activo')->where('especialidad_id', $especialidad->id)->exists(), 422, 'El médico no corresponde a la especialidad seleccionada.');
+            }
             $citaPrevia = null;
             if (! empty($datos['cita_id'])) {
                 $citaPrevia = Cita::whereKey($datos['cita_id'])
@@ -39,6 +54,8 @@ class RecuperacionCupoService
                     ->whereIn('estado', ['programada', 'confirmada'])
                     ->firstOrFail();
             }
+
+            abort_if($citaPrevia && $citaPrevia->medico->especialidad_id !== (int) $datos['especialidad_id'], 422, 'La cita previa debe ser de la misma especialidad.');
 
             $lista = ListaEspera::create([
                 'paciente_id' => $paciente->id,
@@ -89,7 +106,12 @@ class RecuperacionCupoService
         }
 
         return DB::transaction(function () use ($slot, $inicioSlot): ?OfertaCupo {
+            Medico::whereKey($slot->medico_id)->lockForUpdate()->firstOrFail();
             $slot = Slot::whereKey($slot->id)->lockForUpdate()->firstOrFail();
+            OfertaCupo::where('slot_id', $slot->id)->where('estado', 'pendiente')->where('fecha_vencimiento', '<=', now())->update(['estado' => 'vencida', 'respondida_at' => now()]);
+            if ($pendiente = OfertaCupo::where('slot_id', $slot->id)->where('estado', 'pendiente')->first()) {
+                return $pendiente;
+            }
             if ($slot->estado !== 'disponible') {
                 return null;
             }
@@ -126,6 +148,15 @@ class RecuperacionCupoService
                 ->get();
 
             foreach ($candidatos as $candidato) {
+                try {
+                    $this->workflow->validarCupo($slot, $candidato->paciente, $candidato->cita_id);
+                } catch (HttpException $exception) {
+                    if ($exception->getStatusCode() !== 422) {
+                        throw $exception;
+                    }
+
+                    continue;
+                }
                 // Verificar anticipación mínima en horas
                 $horasAnticipacion = now()->diffInHours($inicioSlot, false);
                 if ($horasAnticipacion < $candidato->anticipacion_minima_horas) {
@@ -193,11 +224,19 @@ class RecuperacionCupoService
     public function aceptarOferta(OfertaCupo $oferta, User $user, ?string $operacionId = null): Cita
     {
         return DB::transaction(function () use ($oferta, $user, $operacionId): Cita {
+            $referencia = $oferta->listaEspera;
+            Medico::whereIn('id', array_filter([$oferta->slot->medico_id, $referencia->citaPrevia?->medico_id]))->orderBy('id')->lockForUpdate()->get();
+            Paciente::whereKey($referencia->paciente_id)->lockForUpdate()->firstOrFail();
             $oferta = OfertaCupo::whereKey($oferta->id)->lockForUpdate()->firstOrFail();
             $lista = ListaEspera::whereKey($oferta->lista_espera_id)->lockForUpdate()->firstOrFail();
             $slot = Slot::whereKey($oferta->slot_id)->lockForUpdate()->firstOrFail();
 
             $this->acceso->autorizar($user, $lista->paciente);
+            if ($oferta->estado === 'aceptada') {
+                return Cita::where('oferta_cupo_id', $oferta->id)->where('paciente_id', $lista->paciente_id)->firstOrFail();
+            }
+            abort_unless($lista->estado === 'activa', 422, 'La inscripción ya no está activa.');
+            $this->workflow->validarCupo($slot, $lista->paciente, $lista->cita_id);
 
             // Revalidar vigencia estricta en el servidor
             abort_unless($oferta->isPendiente(), 422, 'La oferta ya no se encuentra pendiente.');
@@ -297,6 +336,27 @@ class RecuperacionCupoService
         }, 3);
     }
 
+    public function retirarInscripcion(ListaEspera $referencia, User $user): void
+    {
+        DB::transaction(function () use ($referencia, $user): void {
+            $slots = Slot::whereIn('id', OfertaCupo::where('lista_espera_id', $referencia->id)->where('estado', 'pendiente')->select('slot_id'))->get();
+            Medico::whereIn('id', $slots->pluck('medico_id'))->orderBy('id')->lockForUpdate()->get();
+            Paciente::whereKey($referencia->paciente_id)->lockForUpdate()->firstOrFail();
+            $lista = ListaEspera::whereKey($referencia->id)->lockForUpdate()->firstOrFail();
+            $this->acceso->autorizar($user, $lista->paciente);
+            if ($lista->estado === 'cancelada') {
+                return;
+            }
+            abort_unless($lista->isActiva(), 422, 'La inscripción no se encuentra activa.');
+            $lista->update(['estado' => 'cancelada', 'motivo_cancelacion' => 'Retirado por el usuario']);
+            OfertaCupo::where('lista_espera_id', $lista->id)->where('estado', 'pendiente')->update(['estado' => 'anulada', 'respondida_at' => now(), 'motivo_respuesta' => 'Inscripción retirada']);
+            foreach ($slots as $slot) {
+                $this->evaluarRecuperacion($slot);
+            }
+            BitacoraService::registrar('RETIRAR_LISTA_ESPERA', 'P4_Citas', ['lista_espera_id' => $lista->id]);
+        }, 3);
+    }
+
     /**
      * Procesa ofertas vencidas y busca al siguiente candidato en lista de espera.
      * Ejecutable de forma periódica por el scheduler de Laravel.
@@ -311,6 +371,12 @@ class RecuperacionCupoService
         $procesadas = 0;
         foreach ($vencidas as $oferta) {
             DB::transaction(function () use ($oferta, &$procesadas): void {
+                Medico::whereKey($oferta->slot->medico_id)->lockForUpdate()->firstOrFail();
+                $oferta = OfertaCupo::whereKey($oferta->id)->lockForUpdate()->firstOrFail();
+                if ($oferta->estado !== 'pendiente' || $oferta->fecha_vencimiento->gt(now())) {
+                    return;
+                }
+
                 $oferta->update(['estado' => 'vencida', 'respondida_at' => now()]);
                 $procesadas++;
 

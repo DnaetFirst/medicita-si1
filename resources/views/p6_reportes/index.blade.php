@@ -170,10 +170,10 @@
         </div>
 
         <!-- Caja de entrada con micrófono -->
-        <div style="display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 0.4rem;">
-            <textarea id="ia-pregunta" rows="2" placeholder="Escribe tu consulta analítica o mantén presionado el micrófono para dictar..." style="flex: 1; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; resize: vertical; font-family: inherit;"></textarea>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; margin-bottom: 0.4rem;">
+            <textarea id="ia-pregunta" rows="2" maxlength="1000" aria-label="Pregunta para el asistente de reportes" placeholder="Escribe una pregunta o pulsa el micrófono para grabarla..." style="flex: 1 1 260px; min-width: 0; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; resize: vertical; font-family: inherit;"></textarea>
 
-            <button type="button" id="btn-microfono" class="btn" style="background: #e2e8f0; color: #334155; display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 0; user-select: none; -webkit-user-select: none; transition: all 0.2s ease;" title="Mantén presionado para hablar (Push-to-Talk) o haz clic para alternar">
+            <button type="button" id="btn-microfono" class="btn" style="background: #e2e8f0; color: #334155; display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 0; user-select: none; -webkit-user-select: none; transition: all 0.2s ease;" title="Grabar pregunta" aria-label="Grabar pregunta" aria-pressed="false">
                 <svg id="mic-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
 
@@ -184,8 +184,8 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; font-size: 0.75rem; color: #64748b; flex-wrap: wrap; gap: 0.25rem;">
-            <span>🎙️ <strong>Dictado por Voz:</strong> Mantén presionado el micrófono para hablar o haz clic para activar/desactivar.</span>
-            <span id="voz-estado" style="display: none; color: #dc2626; font-weight: 600; animation: pulse 1.5s infinite;">● Escuchando tu voz... Suelta el botón para terminar</span>
+            <span>🎙️ <strong>Dictado por Voz:</strong> Pulsa para grabar y vuelve a pulsar para terminar (máximo 60 segundos). El audio se envía a Gemini para transcribirlo; revisa el texto antes de consultar.</span>
+            <span id="voz-estado" role="status" aria-live="polite" style="display: none; color: #dc2626; font-weight: 600; ">Grabando... Pulsa para terminar</span>
         </div>
 
         <!-- Contenedor dinámico de respuesta de IA -->
@@ -207,6 +207,7 @@
                 </table>
             </div>
 
+            <div id="ia-exportar" class="cycle-actions" style="display:none; margin-top:1rem;"></div>
             <!-- Detalle transparente del SQL generado -->
             <details style="margin-top: 0.75rem; font-size: 0.8rem; color: #475569;">
                 <summary style="cursor: pointer; font-weight: 600; color: #2563eb;">Transparencia: Ver consulta SQL validada</summary>
@@ -319,252 +320,5 @@
 }
 </style>
 
-<script>
-function colocarPregunta(texto) {
-    const input = document.getElementById('ia-pregunta');
-    input.value = texto;
-    input.focus();
-}
-
-// Integración de Reconocimiento de Voz (Web Speech API) con Push-to-Talk y Click-to-Toggle
-let reconocimiento = null;
-let reconociendo = false;
-let holdTimer = null;
-let esModoHold = false;
-let textoBase = '';
-const btnMic = document.getElementById('btn-microfono');
-const vozEstado = document.getElementById('voz-estado');
-const inputPregunta = document.getElementById('ia-pregunta');
-
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    reconocimiento = new SpeechRecognition();
-    reconocimiento.lang = 'es-ES';
-    reconocimiento.continuous = true;
-    reconocimiento.interimResults = true;
-
-    reconocimiento.onstart = function() {
-        reconociendo = true;
-        btnMic.style.background = '#dc2626';
-        btnMic.style.color = '#ffffff';
-        btnMic.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.35)';
-        vozEstado.style.display = 'inline';
-        vozEstado.innerHTML = '● Escuchando tu voz... Suelta para finalizar';
-        textoBase = inputPregunta.value ? inputPregunta.value.trim() + ' ' : '';
-    };
-
-    reconocimiento.onresult = function(event) {
-        let textoFinal = '';
-        let textoInterino = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                textoFinal += event.results[i][0].transcript;
-            } else {
-                textoInterino += event.results[i][0].transcript;
-            }
-        }
-
-        if (textoFinal) {
-            textoBase += textoFinal + ' ';
-        }
-        inputPregunta.value = textoBase + textoInterino;
-        inputPregunta.scrollTop = inputPregunta.scrollHeight;
-    };
-
-    reconocimiento.onerror = function(event) {
-        console.warn('Error en reconocimiento de voz:', event.error);
-        if (event.error === 'not-allowed') {
-            alert('Acceso al micrófono denegado. Habilita los permisos de micrófono en la barra de tu navegador para usar el dictado por voz.');
-        }
-        detenerReconocimiento();
-    };
-
-    reconocimiento.onend = function() {
-        detenerReconocimiento();
-    };
-
-    function iniciarReconocimiento(modoHold = false) {
-        if (!reconociendo) {
-            esModoHold = modoHold;
-            try {
-                reconocimiento.start();
-            } catch (err) {
-                console.warn(err);
-            }
-        }
-    }
-
-    function pararReconocimiento() {
-        if (reconociendo) {
-            try {
-                reconocimiento.stop();
-            } catch (err) {
-                console.warn(err);
-            }
-        }
-        detenerReconocimiento();
-    }
-
-    function detenerReconocimiento() {
-        reconociendo = false;
-        esModoHold = false;
-        btnMic.style.background = '#e2e8f0';
-        btnMic.style.color = '#334155';
-        btnMic.style.boxShadow = 'none';
-        vozEstado.style.display = 'none';
-    }
-
-    // Eventos para Push-to-Talk (Mantener presionado con el ratón)
-    btnMic.addEventListener('mousedown', function(e) {
-        if (e.button !== 0) return;
-        holdTimer = setTimeout(() => {
-            iniciarReconocimiento(true);
-        }, 120);
-    });
-
-    btnMic.addEventListener('mouseup', function(e) {
-        clearTimeout(holdTimer);
-        if (esModoHold && reconociendo) {
-            pararReconocimiento();
-        }
-    });
-
-    btnMic.addEventListener('mouseleave', function(e) {
-        clearTimeout(holdTimer);
-        if (esModoHold && reconociendo) {
-            pararReconocimiento();
-        }
-    });
-
-    // Soporte táctil para smartphones y tablets
-    btnMic.addEventListener('touchstart', function(e) {
-        holdTimer = setTimeout(() => {
-            iniciarReconocimiento(true);
-        }, 120);
-    }, { passive: true });
-
-    btnMic.addEventListener('touchend', function(e) {
-        clearTimeout(holdTimer);
-        if (esModoHold && reconociendo) {
-            pararReconocimiento();
-        }
-    });
-
-    // Clic rápido simple para alternar (Click-to-Toggle)
-    btnMic.addEventListener('click', function(e) {
-        if (esModoHold) {
-            return;
-        }
-        if (reconociendo) {
-            pararReconocimiento();
-        } else {
-            iniciarReconocimiento(false);
-        }
-    });
-} else {
-    btnMic.title = 'Tu navegador no soporta Web Speech API nativa. Recomendamos Chrome o Edge.';
-    btnMic.disabled = true;
-    btnMic.style.opacity = '0.5';
-}
-
-// Manejo de la consulta AJAX al endpoint de IA
-document.getElementById('btn-consultar-ia').addEventListener('click', async function() {
-    const pregunta = inputPregunta.value.trim();
-    if (!pregunta) {
-        alert('Por favor, ingresa o dicta una pregunta para el asistente.');
-        return;
-    }
-
-    const btnTexto = document.getElementById('ia-btn-texto');
-    const spinner = document.getElementById('ia-spinner');
-    const contenedor = document.getElementById('ia-resultado-contenedor');
-    const badge = document.getElementById('ia-estado-badge');
-    const meta = document.getElementById('ia-metadatos');
-    const errorBox = document.getElementById('ia-mensaje-error');
-    const tablaHead = document.getElementById('ia-tabla-head');
-    const tablaBody = document.getElementById('ia-tabla-body');
-    const sqlDebug = document.getElementById('ia-sql-debug');
-    const graficoRecom = document.getElementById('ia-grafico-sugerido');
-
-    btnTexto.style.display = 'none';
-    spinner.style.display = 'inline';
-    this.disabled = true;
-
-    try {
-        const response = await fetch("{{ route('reportes.ia.consultar') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ pregunta: pregunta })
-        });
-
-        if (response.status === 419) {
-            contenedor.style.display = 'block';
-            badge.style.background = '#fee2e2';
-            badge.style.color = '#b91c1c';
-            badge.textContent = '⚠ Sesión Expirada (419)';
-            meta.textContent = '';
-            graficoRecom.textContent = '';
-            errorBox.style.display = 'block';
-            errorBox.innerHTML = '<strong>Tu sesión o token de seguridad expiró.</strong> Por favor presiona <strong>F5</strong> para recargar la página e iniciar sesión nuevamente.';
-            tablaHead.innerHTML = '';
-            tablaBody.innerHTML = '';
-            sqlDebug.textContent = 'N/A';
-            return;
-        }
-
-        const data = await response.json();
-        contenedor.style.display = 'block';
-
-        if (data.ok) {
-            badge.style.background = '#dcfce7';
-            badge.style.color = '#15803d';
-            badge.textContent = '✓ Consulta Válida';
-            meta.textContent = `${data.total} filas obtenidas en ${data.tiempo_ms} ms`;
-            errorBox.style.display = 'none';
-            graficoRecom.textContent = `Visualización sugerida: ${data.recomendacion_grafico}`;
-
-            // Renderizar encabezados
-            tablaHead.innerHTML = '<tr>' + (data.columnas || []).map(col =>
-                `<th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #cbd5e1; text-transform: capitalize;">${col.replace(/_/g, ' ')}</th>`
-            ).join('') + '</tr>';
-
-            // Renderizar filas
-            if ((data.filas || []).length > 0) {
-                tablaBody.innerHTML = data.filas.map(fila =>
-                    '<tr style="border-bottom: 1px solid #f1f5f9;">' +
-                    data.columnas.map(col => `<td style="padding: 0.45rem 0.5rem;">${fila[col] !== null ? fila[col] : '—'}</td>`).join('') +
-                    '</tr>'
-                ).join('');
-            } else {
-                tablaBody.innerHTML = '<tr><td colspan="' + (data.columnas.length || 1) + '" style="padding: 1.5rem; text-align: center; color: #64748b;">La consulta no retornó registros para el criterio solicitado.</td></tr>';
-            }
-
-            sqlDebug.textContent = data.sql || 'N/A';
-        } else {
-            badge.style.background = '#fee2e2';
-            badge.style.color = '#b91c1c';
-            badge.textContent = '⚠ Consulta Bloqueada';
-            meta.textContent = `Evaluado en ${data.tiempo_ms || 0} ms`;
-            graficoRecom.textContent = '';
-            errorBox.style.display = 'block';
-            errorBox.innerHTML = `<strong>Motivo:</strong> ${data.mensaje || data.message || 'Error en el servicio de IA'}<br><small>${data.sugerencia || ''}</small>`;
-            tablaHead.innerHTML = '';
-            tablaBody.innerHTML = '';
-            sqlDebug.textContent = data.sql || 'N/A';
-        }
-    } catch (err) {
-        alert('Ocurrió un error de comunicación con el servicio de reportes.');
-        console.error(err);
-    } finally {
-        btnTexto.style.display = 'inline';
-        spinner.style.display = 'none';
-        this.disabled = false;
-    }
-});
-</script>
+<script src="{{ asset('js/reportes.js') }}" defer data-consulta-url="{{ route('reportes.ia.consultar') }}" data-transcripcion-url="{{ route('reportes.ia.transcribir') }}" data-csrf="{{ csrf_token() }}"></script>
 @endsection

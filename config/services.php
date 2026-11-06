@@ -37,7 +37,9 @@ return [
 
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-flash-lite-latest'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.1-flash-lite'),
+        'ca_bundle' => env('GEMINI_CA_BUNDLE'),
+        'report_connection' => env('REPORTS_DB_CONNECTION'),
     ],
 
 ];

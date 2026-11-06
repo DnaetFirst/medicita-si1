@@ -25,6 +25,7 @@ class CicloDosEtapaTresTest extends TestCase
         parent::setUp();
         $this->travelTo('2026-11-07 08:00:00');
         $this->seed(RolSeeder::class);
+        config(['services.gemini.key' => 'clave-prueba']);
 
         Http::fake([
             'https://generativelanguage.googleapis.com/*' => function ($request) {

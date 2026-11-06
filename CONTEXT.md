@@ -10,8 +10,8 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - **P2 Doctors & Agendas (CU3, CU4, CU5, CU6, CU12):** Medical specialties, physician profiles, weekly schedules with 1h breaks, 15-min slots, and agenda blocks (`postergada` state).
 - **P3 Patients & Clinical History (CU7, CU13, CU14):** Patient & guardian management, appointment change log (`HistorialCita`), single clinical record (`HistoriaClinica`), append-only consultations (`AtencionMedica`), and medical derivations.
 - **P4 Appointments, Slips & Waitlist (CU8, CU9, CU10, CU11, CU18):** 4-step booking wizard, printable slips (`codigo_ficha`), reception dashboard, same-appointment rescheduling, and waitlist slot recovery (`ListaEspera`, `OfertaCupo` with 10-min hold).
-- **P5 Clinical Laboratory (CU15):** Lab test catalog, medical orders (`OrdenLaboratorio`), order test items (`OrdenExamen`), and versioned results (`ResultadoLaboratorio`, `DetalleResultado`) with private PDF storage and guardian access authorization.
-- **P6 Business Intelligence & AI Reports (CU17):** Clinical & operational KPIs (attendance, cancellations, no-shows, waitlist recovered slots, slot occupancy), structured CSV/PDF exports, and conversational AI assistant with strict AST SQL validator on read-only views (`vista_reporte_medicos`, `vista_reporte_citas`, `vista_reporte_ocupacion`, `vista_reporte_cancelaciones`).
+- **P5 Clinical Laboratory (CU15):** Lab test catalog, medical orders (`OrdenLaboratorio`), order test items (`OrdenExamen`), and versioned results (`ResultadoLaboratorio`, `DetalleResultado`) with encrypted PDF copies in PostgreSQL (survive ephemeral Render disk loss), publication-only patient/guardian access and atomic lab transitions.
+- **P6 Business Intelligence & AI Reports (CU17):** Clinical & operational KPIs (attendance, cancellations, no-shows, waitlist recovered slots, slot occupancy), structured CSV/PDF exports, and Gemini 3.1 Flash-Lite SQL generation with recursive-descent validation over nine allowlisted analytical views, bounded results, clarification context, encrypted snapshots and owner-only CSV/print exports. MediaRecorder audio is transcribed server-side by Gemini; raw audio is not persisted.
 - **P7 Notifications (CU16):** Queued emails and in-app notices (`Notificacion`) without sensitive medical text, retried via scheduler every 5 minutes.
 
 ## 3. Database Schema Summary
@@ -55,3 +55,14 @@ It enforces strict data isolation across patients, legal guardians, receptionist
   - Notifications: `/avisos`, `POST /avisos/{aviso}/leer`.
 - **Key Domain Services:** `CitaWorkflowService`, `AccesoPacienteService` (enforces clinical privacy), `SlotGeneratorService`, `RecuperacionCupoService`, `ReporteIndicadoresService`, `AiReporteService`, `NotificacionService`, `BitacoraService`.
 - **Testing Suite:** Feature tests organized by stages (`Etapa2Test` to `Etapa5Test`, `SuperAdminTest`, `CicloDosEtapaUnoTest`, `CicloDosEtapaDosTest`, `CicloDosEtapaTresTest`, `CicloDosMigracionTest`).
+
+## Runtime and Deployment Review (2026-11-07)
+- New Render target: `medicita-si1-defensa`, `main`, Docker, free web instance; reuse the existing Neon DATABASE_URL and persistent APP_KEY.
+- `APP_URL` falls back to Render's RENDER_EXTERNAL_URL; PostgreSQL uses TLS. No automatic demo seeding.
+- The web entrypoint supervises the minute scheduler. QUEUE_CONNECTION=sync avoids a paid worker for the defense demo.
+- Free Render instances can sleep; background tasks run while the instance is awake. Acceptance always rechecks expiry.
+- A partial unique index enforces one pending offer per slot; acceptance revalidates shared availability and retries return the same visit.
+- Reports include movements, waitlists, offers, patient registrations and lab order states; clinical observations/results remain excluded.
+- Local PHP CA trust is configured through ignored `.env` GEMINI_CA_BUNDLE; production uses its normal CA trust.
+- Browser UI automation currently fails while reading/controlling the open Render tab. Render/Neon integrations are not connected.
+- The real Neon connection URI is absent locally; README contains a placeholder. Cloud provisioning requires that secret and new-account access.
