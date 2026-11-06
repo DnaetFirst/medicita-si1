@@ -44,7 +44,7 @@ El sistema digitaliza todo el ciclo de atención ambulatoria:
 ┌──────────────────────────────▼──────────────────────────────┐
 │                    CAPA DE DATOS (PostgreSQL / SQLite)      │
 │   Neon Serverless PostgreSQL (Producción con TLS / Pooler)  │
-│   18 Tablas Normalizadas · 3 Vistas Analíticas de Solo Lectura │
+│   18 Tablas Normalizadas · 4 Vistas Analíticas de Solo Lectura │
 │   Bloqueo Pesimista (lockForUpdate) y Optimista (version)   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -92,7 +92,7 @@ El sistema digitaliza todo el ciclo de atención ambulatoria:
 
 ## 🧪 Pruebas Automatizadas (Test Suite)
 
-El proyecto cuenta con **108 pruebas funcionales automatizadas** pasando al **100%** (550 aserciones):
+El proyecto cuenta con **109 pruebas funcionales automatizadas** pasando al **100%** (567 aserciones):
 
 ```bash
 php artisan test
@@ -102,7 +102,7 @@ php artisan test
 ```text
 PASS  Tests\Feature\CicloDosEtapaUnoTest (10 tests)
 PASS  Tests\Feature\CicloDosEtapaDosTest (10 tests)
-PASS  Tests\Feature\CicloDosEtapaTresTest (9 tests)
+PASS  Tests\Feature\CicloDosEtapaTresTest (10 tests)
 PASS  Tests\Feature\CicloDosMigracionTest (2 tests)
 PASS  Tests\Feature\Etapa2Test (10 tests)
 PASS  Tests\Feature\Etapa3Test (8 tests)
@@ -112,8 +112,8 @@ PASS  Tests\Feature\SuperAdminTest (3 tests)
 PASS  Tests\Feature\WorkflowRegressionTest (29 tests)
 PASS  Tests\Feature\ExampleTest (1 test)
 -------------------------------------------------------
-Tests:    108 passed (550 assertions)
-Duration: 17.48s
+Tests:    109 passed (567 assertions)
+Duration: 15.74s
 Result:   100% PASS
 ```
 
