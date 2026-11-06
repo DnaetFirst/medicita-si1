@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -122,8 +123,8 @@ return new class extends Migration
         });
 
         // Re-establecer el índice condicional para SQLite y PostgreSQL (evita que la recreación de tabla elimine la cláusula WHERE)
-        \Illuminate\Support\Facades\DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
-        \Illuminate\Support\Facades\DB::statement("CREATE UNIQUE INDEX citas_active_slot_unique ON citas (slot_id) WHERE estado NOT IN ('cancelada', 'postergada')");
+        DB::statement('DROP INDEX IF EXISTS citas_active_slot_unique');
+        DB::statement("CREATE UNIQUE INDEX citas_active_slot_unique ON citas (slot_id) WHERE estado NOT IN ('cancelada', 'postergada')");
     }
 
     public function down(): void

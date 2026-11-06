@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\P1\Rol;
 use App\Models\User;
-use Database\Seeders\RolSeeder;
-use Database\Seeders\UsuarioSeeder;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,7 +26,7 @@ class ExampleTest extends TestCase
      */
     public function test_authenticated_user_can_access_dashboard(): void
     {
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
 
         $admin = User::where('email', 'admin@medicita.com')->first();
 

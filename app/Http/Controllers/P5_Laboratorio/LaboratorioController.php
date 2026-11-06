@@ -3,15 +3,16 @@
 namespace App\Http\Controllers\P5_Laboratorio;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\EnviarAviso;
 use App\Models\P3\Paciente;
 use App\Models\P5\DetalleResultado;
 use App\Models\P5\ExamenLaboratorio;
 use App\Models\P5\OrdenExamen;
 use App\Models\P5\OrdenLaboratorio;
 use App\Models\P5\ResultadoLaboratorio;
+use App\Models\P7\Notificacion;
 use App\Services\AccesoPacienteService;
 use App\Services\BitacoraService;
-use App\Services\NotificacionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -380,7 +381,7 @@ class LaboratorioController extends Controller
             ->pluck('user_id'));
 
         foreach ($destinatarios->filter()->unique() as $userId) {
-            $aviso = \App\Models\P7\Notificacion::firstOrCreate([
+            $aviso = Notificacion::firstOrCreate([
                 'evento_id' => 'lab:pub:'.$resultado->id.':'.$userId,
             ], [
                 'user_id' => $userId,
@@ -391,7 +392,7 @@ class LaboratorioController extends Controller
             ]);
 
             if ($aviso->wasRecentlyCreated) {
-                \App\Jobs\EnviarAviso::dispatch($aviso->id)->afterCommit();
+                EnviarAviso::dispatch($aviso->id)->afterCommit();
             }
         }
     }

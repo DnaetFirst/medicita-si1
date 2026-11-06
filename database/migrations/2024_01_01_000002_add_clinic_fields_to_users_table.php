@@ -30,7 +30,7 @@ return new class extends Migration
                 'estado',
                 'intentos_fallidos',
                 'bloqueado_hasta',
-                'avatar'
+                'avatar',
             ]);
         });
     }

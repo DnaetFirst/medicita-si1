@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\P2\Medico;
+use App\Jobs\EnviarAviso;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
 use App\Models\P4\ListaEspera;
 use App\Models\P4\OfertaCupo;
+use App\Models\P7\Notificacion;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -352,7 +353,7 @@ class RecuperacionCupoService
                 continue;
             }
 
-            $aviso = \App\Models\P7\Notificacion::firstOrCreate([
+            $aviso = Notificacion::firstOrCreate([
                 'evento_id' => 'oferta:'.$oferta->id.':'.$userId,
             ], [
                 'user_id' => $userId,
@@ -363,7 +364,7 @@ class RecuperacionCupoService
             ]);
 
             if ($aviso->wasRecentlyCreated) {
-                \App\Jobs\EnviarAviso::dispatch($aviso->id)->afterCommit();
+                EnviarAviso::dispatch($aviso->id)->afterCommit();
             }
         }
     }

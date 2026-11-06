@@ -20,7 +20,7 @@ class BitacoraService
             'modulo' => $modulo,
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
-            'detalles' => is_array($detalles) ? json_encode($detalles, JSON_UNESCAPED_UNICODE) : (string)$detalles,
+            'detalles' => is_array($detalles) ? json_encode($detalles, JSON_UNESCAPED_UNICODE) : (string) $detalles,
             'created_at' => now(),
         ]);
     }

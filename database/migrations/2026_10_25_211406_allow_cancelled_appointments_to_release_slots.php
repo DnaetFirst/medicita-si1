@@ -13,7 +13,7 @@ return new class extends Migration
             Schema::table('citas', function (Blueprint $table): void {
                 $table->dropUnique(['slot_id']);
             });
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Unconditional unique dropped or not present
         }
 

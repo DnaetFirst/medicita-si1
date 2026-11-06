@@ -48,6 +48,7 @@ class HorarioAtencion extends Model
             6 => 'Sábado',
             7 => 'Domingo',
         ];
+
         return $dias[$this->dia_semana] ?? 'Desconocido';
     }
 }

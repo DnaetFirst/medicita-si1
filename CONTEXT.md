@@ -11,7 +11,7 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - **P3 Patients & Clinical History (CU7, CU13, CU14):** Patient & guardian management, appointment change log (`HistorialCita`), single clinical record (`HistoriaClinica`), append-only consultations (`AtencionMedica`), and medical derivations.
 - **P4 Appointments, Slips & Waitlist (CU8, CU9, CU10, CU11, CU18):** 4-step booking wizard, printable slips (`codigo_ficha`), reception dashboard, same-appointment rescheduling, and waitlist slot recovery (`ListaEspera`, `OfertaCupo` with 10-min hold).
 - **P5 Clinical Laboratory (CU15):** Lab test catalog, medical orders (`OrdenLaboratorio`), order test items (`OrdenExamen`), and versioned results (`ResultadoLaboratorio`, `DetalleResultado`) with private PDF storage and guardian access authorization.
-- **P6 Business Intelligence & AI Reports (CU17):** Clinical & operational KPIs (attendance, cancellations, no-shows, waitlist recovered slots, slot occupancy), structured CSV/PDF exports, and conversational AI assistant with strict AST SQL validator on read-only views (`vista_reporte_citas`, `vista_reporte_ocupacion`, `vista_reporte_cancelaciones`).
+- **P6 Business Intelligence & AI Reports (CU17):** Clinical & operational KPIs (attendance, cancellations, no-shows, waitlist recovered slots, slot occupancy), structured CSV/PDF exports, and conversational AI assistant with strict AST SQL validator on read-only views (`vista_reporte_medicos`, `vista_reporte_citas`, `vista_reporte_ocupacion`, `vista_reporte_cancelaciones`).
 - **P7 Notifications (CU16):** Queued emails and in-app notices (`Notificacion`) without sensitive medical text, retried via scheduler every 5 minutes.
 
 ## 3. Database Schema Summary

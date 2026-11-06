@@ -14,6 +14,7 @@ class CitaCanceladaMail extends Mailable
     use Queueable, SerializesModels;
 
     public Cita $cita;
+
     public string $motivo;
 
     public function __construct(Cita $cita, string $motivo)

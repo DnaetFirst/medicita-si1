@@ -170,10 +170,10 @@
         </div>
 
         <!-- Caja de entrada con micrófono -->
-        <div style="display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 0.75rem;">
-            <textarea id="ia-pregunta" rows="2" placeholder="Escribe tu consulta analítica o presiona el micrófono para dictar..." style="flex: 1; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; resize: vertical; font-family: inherit;"></textarea>
+        <div style="display: flex; gap: 0.5rem; align-items: stretch; margin-bottom: 0.4rem;">
+            <textarea id="ia-pregunta" rows="2" placeholder="Escribe tu consulta analítica o mantén presionado el micrófono para dictar..." style="flex: 1; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; resize: vertical; font-family: inherit;"></textarea>
 
-            <button type="button" id="btn-microfono" class="btn" style="background: #e2e8f0; color: #334155; display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 0;" title="Dictado por Voz (Speech-to-Text)">
+            <button type="button" id="btn-microfono" class="btn" style="background: #e2e8f0; color: #334155; display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 0; user-select: none; -webkit-user-select: none; transition: all 0.2s ease;" title="Mantén presionado para hablar (Push-to-Talk) o haz clic para alternar">
                 <svg id="mic-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             </button>
 
@@ -183,8 +183,9 @@
             </button>
         </div>
 
-        <div id="voz-estado" style="display: none; font-size: 0.8rem; color: #dc2626; margin-bottom: 0.5rem; font-weight: 500;">
-            ● Grabando audio... Habla ahora. El texto se transcribirá directamente.
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; font-size: 0.75rem; color: #64748b; flex-wrap: wrap; gap: 0.25rem;">
+            <span>🎙️ <strong>Dictado por Voz:</strong> Mantén presionado el micrófono para hablar o haz clic para activar/desactivar.</span>
+            <span id="voz-estado" style="display: none; color: #dc2626; font-weight: 600; animation: pulse 1.5s infinite;">● Escuchando tu voz... Suelta el botón para terminar</span>
         </div>
 
         <!-- Contenedor dinámico de respuesta de IA -->
@@ -325,9 +326,12 @@ function colocarPregunta(texto) {
     input.focus();
 }
 
-// Integración de Reconocimiento de Voz (Web Speech API)
+// Integración de Reconocimiento de Voz (Web Speech API) con Push-to-Talk y Click-to-Toggle
 let reconocimiento = null;
 let reconociendo = false;
+let holdTimer = null;
+let esModoHold = false;
+let textoBase = '';
 const btnMic = document.getElementById('btn-microfono');
 const vozEstado = document.getElementById('voz-estado');
 const inputPregunta = document.getElementById('ia-pregunta');
@@ -336,23 +340,43 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     reconocimiento = new SpeechRecognition();
     reconocimiento.lang = 'es-ES';
-    reconocimiento.continuous = false;
-    reconocimiento.interimResults = false;
+    reconocimiento.continuous = true;
+    reconocimiento.interimResults = true;
 
     reconocimiento.onstart = function() {
         reconociendo = true;
-        btnMic.style.background = '#ef4444';
+        btnMic.style.background = '#dc2626';
         btnMic.style.color = '#ffffff';
-        vozEstado.style.display = 'block';
+        btnMic.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.35)';
+        vozEstado.style.display = 'inline';
+        vozEstado.innerHTML = '● Escuchando tu voz... Suelta para finalizar';
+        textoBase = inputPregunta.value ? inputPregunta.value.trim() + ' ' : '';
     };
 
     reconocimiento.onresult = function(event) {
-        const transripcion = event.results[0][0].transcript;
-        inputPregunta.value = (inputPregunta.value ? inputPregunta.value + ' ' : '') + transripcion;
+        let textoFinal = '';
+        let textoInterino = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                textoFinal += event.results[i][0].transcript;
+            } else {
+                textoInterino += event.results[i][0].transcript;
+            }
+        }
+
+        if (textoFinal) {
+            textoBase += textoFinal + ' ';
+        }
+        inputPregunta.value = textoBase + textoInterino;
+        inputPregunta.scrollTop = inputPregunta.scrollHeight;
     };
 
     reconocimiento.onerror = function(event) {
         console.warn('Error en reconocimiento de voz:', event.error);
+        if (event.error === 'not-allowed') {
+            alert('Acceso al micrófono denegado. Habilita los permisos de micrófono en la barra de tu navegador para usar el dictado por voz.');
+        }
         detenerReconocimiento();
     };
 
@@ -360,24 +384,88 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         detenerReconocimiento();
     };
 
-    btnMic.addEventListener('click', function() {
+    function iniciarReconocimiento(modoHold = false) {
+        if (!reconociendo) {
+            esModoHold = modoHold;
+            try {
+                reconocimiento.start();
+            } catch (err) {
+                console.warn(err);
+            }
+        }
+    }
+
+    function pararReconocimiento() {
         if (reconociendo) {
-            reconocimiento.stop();
+            try {
+                reconocimiento.stop();
+            } catch (err) {
+                console.warn(err);
+            }
+        }
+        detenerReconocimiento();
+    }
+
+    function detenerReconocimiento() {
+        reconociendo = false;
+        esModoHold = false;
+        btnMic.style.background = '#e2e8f0';
+        btnMic.style.color = '#334155';
+        btnMic.style.boxShadow = 'none';
+        vozEstado.style.display = 'none';
+    }
+
+    // Eventos para Push-to-Talk (Mantener presionado con el ratón)
+    btnMic.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        holdTimer = setTimeout(() => {
+            iniciarReconocimiento(true);
+        }, 120);
+    });
+
+    btnMic.addEventListener('mouseup', function(e) {
+        clearTimeout(holdTimer);
+        if (esModoHold && reconociendo) {
+            pararReconocimiento();
+        }
+    });
+
+    btnMic.addEventListener('mouseleave', function(e) {
+        clearTimeout(holdTimer);
+        if (esModoHold && reconociendo) {
+            pararReconocimiento();
+        }
+    });
+
+    // Soporte táctil para smartphones y tablets
+    btnMic.addEventListener('touchstart', function(e) {
+        holdTimer = setTimeout(() => {
+            iniciarReconocimiento(true);
+        }, 120);
+    }, { passive: true });
+
+    btnMic.addEventListener('touchend', function(e) {
+        clearTimeout(holdTimer);
+        if (esModoHold && reconociendo) {
+            pararReconocimiento();
+        }
+    });
+
+    // Clic rápido simple para alternar (Click-to-Toggle)
+    btnMic.addEventListener('click', function(e) {
+        if (esModoHold) {
+            return;
+        }
+        if (reconociendo) {
+            pararReconocimiento();
         } else {
-            reconocimiento.start();
+            iniciarReconocimiento(false);
         }
     });
 } else {
-    btnMic.title = 'Tu navegador no soporta reconocimiento de voz nativo.';
+    btnMic.title = 'Tu navegador no soporta Web Speech API nativa. Recomendamos Chrome o Edge.';
     btnMic.disabled = true;
     btnMic.style.opacity = '0.5';
-}
-
-function detenerReconocimiento() {
-    reconociendo = false;
-    btnMic.style.background = '#e2e8f0';
-    btnMic.style.color = '#334155';
-    vozEstado.style.display = 'none';
 }
 
 // Manejo de la consulta AJAX al endpoint de IA

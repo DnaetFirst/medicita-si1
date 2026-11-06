@@ -4,6 +4,7 @@ namespace App\Models\P4;
 
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
+use App\Models\P3\Derivacion;
 use App\Models\P3\Paciente;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -72,7 +73,7 @@ class Cita extends Model
 
     public function derivacion(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\P3\Derivacion::class, 'derivacion_id');
+        return $this->belongsTo(Derivacion::class, 'derivacion_id');
     }
 
     public function ofertaCupo(): BelongsTo

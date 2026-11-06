@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\P1\Rol;
 use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
-use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
 use App\Models\P6\ReporteIa;
@@ -269,6 +268,7 @@ class CicloDosEtapaTresTest extends TestCase
     public function test_ai_consultar_ajax_endpoint_returns_json(): void
     {
         $admin = $this->crearUsuario('admin');
+        Medico::factory()->create();
 
         $response = $this->actingAs($admin)->postJson(route('reportes.ia.consultar'), [
             'pregunta' => '¿Cuántas citas canceladas hay?',
@@ -284,5 +284,59 @@ class CicloDosEtapaTresTest extends TestCase
             'total',
             'tiempo_ms',
         ]);
+        $response->assertJson(['ok' => true]);
+
+        // Consulta AJAX para médicos registrados
+        $respMedicos = $this->actingAs($admin)->postJson(route('reportes.ia.consultar'), [
+            'pregunta' => 'dame una lista con sus especialidades de todos los medicos registrados',
+        ]);
+        $respMedicos->assertOk();
+        $respMedicos->assertJson(['ok' => true]);
+        $this->assertContains('medico_nombre', $respMedicos->json('columnas'));
+        $this->assertContains('especialidad_nombre', $respMedicos->json('columnas'));
+    }
+
+    public function test_ai_query_lists_all_registered_doctors_with_dynamic_columns_and_exclusions(): void
+    {
+        $admin = $this->crearUsuario('admin');
+        $esp1 = Especialidad::factory()->create(['nombre' => 'Cardiología']);
+        $esp2 = Especialidad::factory()->create(['nombre' => 'Pediatría']);
+
+        Medico::factory()->create(['especialidad_id' => $esp1->id]);
+        Medico::factory()->create(['especialidad_id' => $esp2->id]);
+
+        $service = app(AiReporteService::class);
+
+        // 1. Consulta de todos los médicos registrados
+        $res1 = $service->ejecutarConsulta(
+            pregunta: 'dame una lista con sus especialidades de todos los medicos registrados',
+            userId: $admin->id
+        );
+
+        $this->assertTrue($res1['ok']);
+        $this->assertGreaterThanOrEqual(2, $res1['total']);
+        $this->assertContains('medico_nombre', $res1['columnas']);
+        $this->assertContains('especialidad_nombre', $res1['columnas']);
+
+        // 2. Consulta con exclusión de columnas ("sin matricula ni telefono")
+        $res2 = $service->ejecutarConsulta(
+            pregunta: 'dame una lista con sus especialidades de todos los medicos registrados sin matricula ni telefono',
+            userId: $admin->id
+        );
+
+        $this->assertTrue($res2['ok']);
+        $this->assertNotContains('nro_registro_medico', $res2['columnas']);
+        $this->assertNotContains('telefono_contacto', $res2['columnas']);
+        $this->assertContains('medico_nombre', $res2['columnas']);
+        $this->assertContains('especialidad_nombre', $res2['columnas']);
+
+        // 3. Consulta con inclusión estricta ("solo nombre y especialidad")
+        $res3 = $service->ejecutarConsulta(
+            pregunta: 'muestrame todos los medicos solo nombre y especialidad',
+            userId: $admin->id
+        );
+
+        $this->assertTrue($res3['ok']);
+        $this->assertEquals(['medico_nombre', 'especialidad_nombre'], $res3['columnas']);
     }
 }

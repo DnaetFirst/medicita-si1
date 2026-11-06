@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\P1\Rol;
 use App\Models\P2\BloqueoAgenda;
 use App\Models\P2\Especialidad;
 use App\Models\P2\HorarioAtencion;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\User;
+use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,7 +18,9 @@ class Etapa3Test extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $recepcionista;
+
     protected Medico $medico;
 
     protected function setUp(): void
@@ -151,7 +153,7 @@ class Etapa3Test extends TestCase
     public function test_can_generate_slots_with_15min_intervals_and_rest_period(): void
     {
         // Asegurar que el médico tiene un horario para el próximo lunes
-        $proximoLunes = now()->next(\Carbon\Carbon::MONDAY)->toDateString();
+        $proximoLunes = now()->next(Carbon::MONDAY)->toDateString();
 
         HorarioAtencion::updateOrCreate(
             ['medico_id' => $this->medico->id, 'dia_semana' => 1],

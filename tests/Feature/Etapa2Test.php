@@ -2,15 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\P1\Bitacora;
 use App\Models\P1\Rol;
-use App\Models\P2\Especialidad;
 use App\Models\User;
 use Database\Seeders\EspecialidadSeeder;
 use Database\Seeders\RolSeeder;
 use Database\Seeders\UsuarioSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class Etapa2Test extends TestCase

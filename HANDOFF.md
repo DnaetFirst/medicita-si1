@@ -1,22 +1,20 @@
 # HANDOFF.md — Multi-Agent Task Synchronization
 
 ## Completed
-- Created and executed `DemostracionCompletaSeeder` generating rich, realistic clinical data across all system packages.
-- Seeded 6 medical specialists across 6 specialties with full weekly schedules and 1,548 generated appointment slots.
-- Populated 8 realistic patients with electronic health records (`historias_clinicas`), chronic histories, and medications.
-- Registered 10 appointments across varied states (completed, waiting, confirmed, scheduled, cancelled, no-show).
-- Seeded clinical consultations (`atenciones_medicas`) with SOAP notes, vital signs, CIE-10 diagnoses, and cardiology derivation.
-- Seeded 3 laboratory orders (published with digital PDF and 11 quantified parameters, validated in process, and newly issued).
-- Seeded waitlist entries (active, pending offer with countdown timer, and accepted offer with recovered appointment).
-- Populated natural language AI reports (`reportes_ia`) and 13 comprehensive audit logs (`bitacoras`).
-- Populated both `database.sqlite` and `storage/app/private/etapa1-preview.sqlite` (used by live dev server on port 8011).
-- Formatted with Laravel Pint and verified entire test suite: 108 tests passed (550 assertions, 0 failures).
+- Created analytical view `vista_reporte_medicos` and migrated on both SQLite databases.
+- Integrated Google Gemini API support in `AiReporteService` for dynamic analytical SQL queries.
+- Developed dynamic schema-aware semantic translator handling custom projections in real time.
+- Enabled dynamic column projection, exclusions ("sin matrícula ni teléfono", "ocultar X"), and strict inclusions ("solo nombre y especialidad").
+- Added Web Speech API Push-to-Talk (Hold-to-Talk: `mousedown`/`touchstart`) and Click-to-Toggle with continuous interim dictation in `p6_reportes/index.blade.php`.
+- Added feature tests covering registered doctor listing, column exclusions, and JSON API response.
+- Formatted with Pint and verified all 109 tests pass (567 assertions, 0 errors, 0 failures).
 
 ## Modified Files
-- `database/seeders/DemostracionCompletaSeeder.php`
-- `database/seeders/DatabaseSeeder.php`, `database/seeders/ExamenLaboratorioSeeder.php`
-- `HANDOFF.md`
+- `database/migrations/2026_11_07_130000_create_vista_reporte_medicos.php`
+- `app/Services/AiReporteService.php`, `config/services.php`
+- `resources/views/p6_reportes/index.blade.php`, `tests/Feature/CicloDosEtapaTresTest.php`
+- `CONTEXT.md`, `HANDOFF.md`
 
 ## Next Step / Pending
-1. Have user test each module in their browser at `http://127.0.0.1:8011` to inspect populated data across all roles.
-2. Commit `DemostracionCompletaSeeder` and updated seeders to git.
+1. Test speech hold-to-talk and natural language queries at `http://127.0.0.1:8011/reportes`.
+2. Commit latest AI reporting and microphone enhancements to git.

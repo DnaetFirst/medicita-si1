@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\P2\Especialidad;
-use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P4\Cita;
 use Carbon\Carbon;
@@ -108,7 +107,7 @@ class ReporteIndicadoresService
 
         $output = fopen('php://temp', 'r+');
         // UTF-8 BOM
-        fputs($output, "\xEF\xBB\xBF");
+        fwrite($output, "\xEF\xBB\xBF");
 
         fputcsv($output, [
             'ID',

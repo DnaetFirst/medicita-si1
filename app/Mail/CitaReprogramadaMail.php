@@ -14,6 +14,7 @@ class CitaReprogramadaMail extends Mailable
     use Queueable, SerializesModels;
 
     public Cita $citaNueva;
+
     public Cita $citaAnterior;
 
     public function __construct(Cita $citaNueva, Cita $citaAnterior)

@@ -18,16 +18,16 @@ return new class extends Migration
             $table->time('hora');
             $table->string('estado', 20)->default('programada'); // programada, confirmada, en_curso, atendida, cancelada
             $table->text('motivo_consulta')->nullable();
-            
+
             // Cancelación y reprogramación (CU9, CU10)
             $table->text('motivo_cancelacion')->nullable();
             $table->foreignId('cancelado_por_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('reprogramada_de_id')->nullable()->constrained('citas')->nullOnDelete();
-            
+
             // Asistencia y consulta médica (CU11)
             $table->timestamp('hora_checkin')->nullable();
             $table->text('observaciones_atencion')->nullable();
-            
+
             $table->timestamps();
 
             // Índices para consultas de agenda y reportes

@@ -14,7 +14,6 @@ use App\Models\P4\OfertaCupo;
 use App\Models\P5\ExamenLaboratorio;
 use App\Models\P5\OrdenLaboratorio;
 use App\Models\P5\ResultadoLaboratorio;
-use App\Models\P7\Notificacion;
 use App\Models\User;
 use App\Services\RecuperacionCupoService;
 use Database\Seeders\RolSeeder;

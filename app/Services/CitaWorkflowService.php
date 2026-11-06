@@ -7,6 +7,7 @@ use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
 use App\Models\P4\HistorialCita;
+use App\Models\P4\OfertaCupo;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ class CitaWorkflowService
         abort_unless($slot->medico->estado === 'activo' && $slot->medico->user->estado === 'activo' && $slot->medico->especialidad->activo, 422, 'El médico o la especialidad no están disponibles.');
         abort_if(Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio)->lte(now()), 422, 'El turno debe ser futuro.');
         abort_if($this->slots->estaBloqueado($slot), 422, 'El turno está bloqueado.');
-        $ofertaAjena = \App\Models\P4\OfertaCupo::where('slot_id', $slot->id)
+        $ofertaAjena = OfertaCupo::where('slot_id', $slot->id)
             ->where('estado', 'pendiente')
             ->where('fecha_vencimiento', '>', now())
             ->whereHas('listaEspera', fn ($q) => $q->where('paciente_id', '!=', $paciente->id))

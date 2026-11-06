@@ -4,6 +4,7 @@ use App\Jobs\EnviarAviso;
 use App\Models\P1\Rol;
 use App\Models\P7\Notificacion;
 use App\Models\User;
+use App\Services\RecuperacionCupoService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -59,5 +60,5 @@ Schedule::call(function (): void {
 })->name('reintentar-avisos')->everyFiveMinutes()->withoutOverlapping();
 
 Schedule::call(function (): void {
-    app(\App\Services\RecuperacionCupoService::class)->procesarOfertasVencidas();
+    app(RecuperacionCupoService::class)->procesarOfertasVencidas();
 })->name('procesar-ofertas-vencidas')->everyMinute()->withoutOverlapping();
