@@ -17,7 +17,9 @@ case "${PROCESS_ROLE:-web}" in
     scheduler)
         exec php artisan schedule:work --no-interaction
         ;;
-    web) ;;
+    web)
+        php artisan migrate --force --no-interaction
+        ;;
     *) echo "PROCESS_ROLE must be web, release, worker or scheduler" >&2; exit 1 ;;
 esac
 
@@ -25,5 +27,6 @@ sed -i "s/^Listen 80$/Listen ${PORT:-10000}/" /etc/apache2/ports.conf
 sed -i "s/\*:80/*:${PORT:-10000}/" /etc/apache2/sites-available/000-default.conf
 php artisan route:cache
 php artisan view:cache
+mkdir -p storage/app/private/laboratorio
 chown -R www-data:www-data storage bootstrap/cache
 exec apache2-foreground

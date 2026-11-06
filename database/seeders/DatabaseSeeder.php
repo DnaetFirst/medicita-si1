@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RolSeeder::class,
             EspecialidadSeeder::class,
             UsuarioSeeder::class,
+            ExamenLaboratorioSeeder::class,
         ]);
     }
 }

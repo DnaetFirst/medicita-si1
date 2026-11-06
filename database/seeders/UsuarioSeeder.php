@@ -149,5 +149,34 @@ class UsuarioSeeder extends Seeder
                 'activo' => true,
             ]
         );
+
+        // 5. Usuario Laboratorio (CU15)
+        $rolLab = Rol::where('slug', 'lab')->first();
+        if ($rolLab) {
+            User::firstOrCreate(
+                ['email' => 'lab@medicita.com'],
+                [
+                    'name' => 'Lic. Bioq. Roberto Arnez',
+                    'rol_id' => $rolLab->id,
+                    'ci' => '60798899',
+                    'telefono' => '76789012',
+                    'password' => Hash::make('Lab123!'),
+                    'estado' => 'activo',
+                ]
+            );
+        }
+
+        // 6. Asegurar credencial paciente@medicita.com para demostración
+        User::firstOrCreate(
+            ['email' => 'paciente@medicita.com'],
+            [
+                'name' => 'Juan Pablo Rojas Silva',
+                'rol_id' => $rolPac->id,
+                'ci' => '40596878',
+                'telefono' => '74567891',
+                'password' => Hash::make('Paciente123!'),
+                'estado' => 'activo',
+            ]
+        );
     }
 }

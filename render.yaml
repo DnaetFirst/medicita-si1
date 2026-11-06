@@ -14,6 +14,8 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      - key: APP_TIMEZONE
+        value: America/La_Paz
       - key: DB_CONNECTION
         value: pgsql
       - key: DATABASE_URL
