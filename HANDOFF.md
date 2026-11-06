@@ -20,7 +20,9 @@
 ## Pending
 - User explicitly requests a NEW Render account (currently open in Brave), retaining the EXISTING Neon database.
 - Old inferred URL medicita-si1.onrender.com responds Service Suspended; do not resume/reuse it as the target.
-- New-account Render control and the actual Neon DATABASE_URL are unavailable locally. Integrations are not connected; browser control fails.
+- Render and Neon are now installed/enabled (verified 2026-11-07); user confirms connected. Their tools are absent from this existing session.
+- Start a new Codex chat/session in this project to load the newly installed tools; official plugin docs require a new chat after installation.
+- Browser fallback still fails reading the Render tab. Actual Neon DATABASE_URL and production APP_KEY remain unavailable locally.
 - Obtain these through connected Render/Neon or private local env configuration; never put secrets in chat/Git.
 - Preserve the original production APP_KEY; deploy main, inspect build/runtime logs and verify HTTPS, DB, reports, audio and scheduler.
 - No cloud deployment has been completed or verified yet. Microphone hardware and responsive browser inspection remain unverified.
