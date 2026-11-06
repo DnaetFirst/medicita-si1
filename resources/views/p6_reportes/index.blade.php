@@ -502,6 +502,21 @@ document.getElementById('btn-consultar-ia').addEventListener('click', async func
             body: JSON.stringify({ pregunta: pregunta })
         });
 
+        if (response.status === 419) {
+            contenedor.style.display = 'block';
+            badge.style.background = '#fee2e2';
+            badge.style.color = '#b91c1c';
+            badge.textContent = '⚠ Sesión Expirada (419)';
+            meta.textContent = '';
+            graficoRecom.textContent = '';
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = '<strong>Tu sesión o token de seguridad expiró.</strong> Por favor presiona <strong>F5</strong> para recargar la página e iniciar sesión nuevamente.';
+            tablaHead.innerHTML = '';
+            tablaBody.innerHTML = '';
+            sqlDebug.textContent = 'N/A';
+            return;
+        }
+
         const data = await response.json();
         contenedor.style.display = 'block';
 
@@ -534,10 +549,10 @@ document.getElementById('btn-consultar-ia').addEventListener('click', async func
             badge.style.background = '#fee2e2';
             badge.style.color = '#b91c1c';
             badge.textContent = '⚠ Consulta Bloqueada';
-            meta.textContent = `Evaluado en ${data.tiempo_ms} ms`;
+            meta.textContent = `Evaluado en ${data.tiempo_ms || 0} ms`;
             graficoRecom.textContent = '';
             errorBox.style.display = 'block';
-            errorBox.innerHTML = `<strong>Motivo:</strong> ${data.mensaje}<br><small>${data.sugerencia || ''}</small>`;
+            errorBox.innerHTML = `<strong>Motivo:</strong> ${data.mensaje || data.message || 'Error en el servicio de IA'}<br><small>${data.sugerencia || ''}</small>`;
             tablaHead.innerHTML = '';
             tablaBody.innerHTML = '';
             sqlDebug.textContent = data.sql || 'N/A';
