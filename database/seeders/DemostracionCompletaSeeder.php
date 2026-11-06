@@ -235,7 +235,7 @@ class DemostracionCompletaSeeder extends Seeder
         // 4. Catálogo de Pacientes Realistas
         $pacientesData = [
             [
-                'email' => 'paciente@medicita.com',
+                'email' => 'paciente.demo@medicita.com',
                 'ci' => '40596877',
                 'nombres' => 'Juan Pablo',
                 'apellidos' => 'Rojas Silva',
@@ -366,30 +366,17 @@ class DemostracionCompletaSeeder extends Seeder
 
         $pacientesModels = [];
         foreach ($pacientesData as $p) {
-            $userPac = User::firstOrCreate(
-                ['email' => $p['email']],
-                [
+            $userPac = User::where('ci', $p['ci'])->orWhere('email', $p['email'])->first();
+            if (! $userPac) {
+                $userPac = User::create([
+                    'email' => $p['email'],
                     'name' => "{$p['nombres']} {$p['apellidos']}",
                     'rol_id' => $rolPac->id,
                     'ci' => $p['ci'],
                     'telefono' => $p['telefono'],
                     'password' => Hash::make('Paciente123!'),
                     'estado' => 'activo',
-                ]
-            );
-
-            if ($p['email'] === 'paciente@medicita.com') {
-                User::firstOrCreate(
-                    ['email' => 'paciente.demo@medicita.com'],
-                    [
-                        'name' => "{$p['nombres']} {$p['apellidos']}",
-                        'rol_id' => $rolPac->id,
-                        'ci' => $p['ci'],
-                        'telefono' => $p['telefono'],
-                        'password' => Hash::make('Paciente123!'),
-                        'estado' => 'activo',
-                    ]
-                );
+                ]);
             }
 
             $paciente = Paciente::firstOrCreate(
@@ -422,6 +409,9 @@ class DemostracionCompletaSeeder extends Seeder
             );
 
             $pacientesModels[$p['email']] = $paciente;
+            if ($p['email'] === 'paciente.demo@medicita.com') {
+                $pacientesModels['paciente@medicita.com'] = $paciente;
+            }
         }
 
         // Helper para asegurar la existencia de un slot específico
@@ -429,26 +419,21 @@ class DemostracionCompletaSeeder extends Seeder
             $horaFinStr = Carbon::createFromFormat('H:i', $horaInicioStr)->addMinutes(15)->format('H:i');
             $horario = HorarioAtencion::where('medico_id', $medico->id)->first();
 
-            $slot = Slot::where('medico_id', $medico->id)
-                ->whereDate('fecha', $fechaStr)
-                ->where('hora_inicio', $horaInicioStr)
-                ->first();
-
-            if (! $slot) {
-                $slot = Slot::create([
+            return Slot::firstOrCreate(
+                [
                     'medico_id' => $medico->id,
-                    'horario_id' => $horario?->id,
                     'fecha' => $fechaStr,
                     'hora_inicio' => $horaInicioStr,
+                ],
+                [
+                    'horario_id' => $horario?->id,
                     'hora_fin' => $horaFinStr,
                     'estado' => 'disponible',
-                ]);
-            }
-
-            return $slot;
+                ]
+            );
         };
 
-        // 5. Generación de Slots generales
+        // 5. Generación de Slots generales optimizada en lote
         $hoy = Carbon::today();
         $fechasGeneracion = [
             $hoy->copy()->subDays(4)->toDateString(),
@@ -464,11 +449,42 @@ class DemostracionCompletaSeeder extends Seeder
 
         $horasSlots = ['08:00', '08:15', '08:30', '08:45', '09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30', '14:45', '15:00', '15:15', '15:30', '15:45'];
 
+        $medicoIds = array_map(fn ($m) => $m->id, $medicosModels);
+        $horariosMap = HorarioAtencion::whereIn('medico_id', $medicoIds)->get()->groupBy('medico_id');
+        $existingKeys = [];
+        foreach (Slot::whereIn('medico_id', $medicoIds)->whereIn('fecha', $fechasGeneracion)->get(['medico_id', 'fecha', 'hora_inicio']) as $es) {
+            $fecStr = is_string($es->fecha) ? $es->fecha : $es->fecha->toDateString();
+            $existingKeys["{$es->medico_id}_{$fecStr}_{$es->hora_inicio}"] = true;
+        }
+
+        $nuevosSlots = [];
+        $nowTimestamp = now();
         foreach ($medicosModels as $medico) {
+            $horario = $horariosMap[$medico->id]->first() ?? null;
             foreach ($fechasGeneracion as $fechaStr) {
                 foreach ($horasSlots as $horaStr) {
-                    $obtenerOCrearSlot($medico, $fechaStr, $horaStr);
+                    $key = "{$medico->id}_{$fechaStr}_{$horaStr}";
+                    if (! isset($existingKeys[$key])) {
+                        $horaFinStr = Carbon::createFromFormat('H:i', $horaStr)->addMinutes(15)->format('H:i');
+                        $nuevosSlots[] = [
+                            'medico_id' => $medico->id,
+                            'horario_id' => $horario?->id,
+                            'fecha' => $fechaStr,
+                            'hora_inicio' => $horaStr,
+                            'hora_fin' => $horaFinStr,
+                            'estado' => 'disponible',
+                            'created_at' => $nowTimestamp,
+                            'updated_at' => $nowTimestamp,
+                        ];
+                        $existingKeys[$key] = true;
+                    }
                 }
+            }
+        }
+
+        if (! empty($nuevosSlots)) {
+            foreach (array_chunk($nuevosSlots, 500) as $chunk) {
+                Slot::insertOrIgnore($chunk);
             }
         }
 
