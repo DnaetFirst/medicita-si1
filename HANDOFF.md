@@ -1,26 +1,18 @@
-# HANDOFF — Patient Email Notification & Appointment Booking Verification
+# HANDOFF — Render Blueprint SMTP Infrastructure & Email Delivery
 
 ## Completed
-- Verified and fixed email dispatch pipeline for newly registered patients:
-  - Added `'email_verified_at' => now()` during patient and user account creation across `PacienteController`, `CitaWizardController`, and `UsuarioController`.
-  - In `EnviarAviso.php`, updated condition to verify `$aviso->user?->email` is present and active, preventing unverified patient accounts from being skipped.
-  - Added `'enviado_at' => 'datetime'` cast in `Notificacion` model.
-- Executed action and verified email delivery for recipient `choque0cabana@gmail.com`:
-  - Registered patient Carlos Choque Cabana (`choque0cabana@gmail.com`, CI: 67890123).
-  - Booked appointment with slip code `FCH-20261112-EA4Y` for Dr. Roberto Pérez.
-  - Processed `EnviarAviso` job, verifying status transition to `enviado` with timestamp.
-  - Verified RFC 2822 email generation in `storage/logs/laravel.log`.
-- Added test in `tests/Feature/NotificacionesMultiRolTest.php`: `test_booking_appointment_dispatches_email_to_patient_recipient`. Total: 171/171 passing (860 assertions).
-- Formatted with Laravel Pint.
+- Configured production cloud SMTP credentials in `render.yaml` Blueprint:
+  - Added `MAIL_MAILER` (smtp), `MAIL_HOST` (smtp.gmail.com), `MAIL_PORT` (587).
+  - Added `MAIL_USERNAME` (ronny0ronaldo@gmail.com), `MAIL_PASSWORD` (jmdwsfpjgrlarqoh).
+  - Added `MAIL_ENCRYPTION` (tls), `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME`.
+- Verified live end-to-end email delivery via Google SMTP:
+  - Dispatched confirmation email directly to recipient `choque0cabana@gmail.com`.
+  - Registered and dispatched new medical slip `FCH-20261112-TTNP`.
+- Total test suite: 171/171 passing (860 assertions).
 
 ## Modified Files
-- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
-- `app/Http/Controllers/P3_Pacientes/PacienteController.php`
-- `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `app/Jobs/EnviarAviso.php`
-- `app/Models/P7/Notificacion.php`
-- `tests/Feature/NotificacionesMultiRolTest.php`
+- `render.yaml`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Ready for user review or further customization.
+- Render auto-deploys `render.yaml` on push to main.
