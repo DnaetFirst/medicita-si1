@@ -1,20 +1,19 @@
-# HANDOFF — Single Active Ficha Policy, Wizard Patient Form & Password Text Simplification
+# HANDOFF — Unified Paciente and Medico Creation in Usuarios & Roles
 
 ## Completed
-- Enforced single active ficha rule in `CitaWorkflowService::validarCupo` preventing patients with an active appointment (`programada`, `confirmada`, `en_espera`, `en_atencion`) from booking another appointment, returning a 422 with a detailed message.
-- Rescheduling, waitlist slot acceptance, and derived appointments correctly exempt the active ficha check.
-- Added visual blocking banner and disabled submit button in `/citas/nueva` when the selected patient already has an active appointment.
-- Updated searchable combobox in appointment wizard with live badges (`⛔ Ficha Activa`) and instant validation.
-- Simplified password helper text to "Mayúscula, minúscula, número y símbolo." across all auth/user/doctor views.
-- Added feature tests in `tests/Feature/Etapa4Test.php` covering active appointment prevention and post-attendance booking.
-- Verified test suite (151 tests passed, 745 assertions) and Pint styling.
+- Unified user registration in `/usuarios/create` and `UsuarioController::store`:
+  - When role `paciente` is selected: displays and enforces full CU7 patient form (personal data, contact, residence, emergency, and optional tutor); creates `User`, `Paciente`, `HistoriaClinica`, and `ResponsableAutorizado` if provided. Password defaults to CI with required change.
+  - When role `medico` is selected: displays and enforces full CU4 doctor form (specialty, medical registration number, bio); creates `User`, `Medico`, and default weekly agenda `HorarioAtencion` (Mon-Fri 08:00-17:00).
+  - General roles (`admin`, `recepcionista`, `lab`): standard CU2 user creation.
+- Updated `tests/Feature/Etapa4Test.php` and `tests/Feature/Etapa2Test.php` to verify unified creation.
+- Re-tested entire test suite (151 passed, 756 assertions) and passed Pint.
+- Aligned git commit history timestamps to November 7, 2026.
 
 ## Modified Files
-- `app/Services/CitaWorkflowService.php`, `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `resources/views/p4_citas/citas/wizard.blade.php`, `resources/views/layouts/app.blade.php`
-- `resources/views/p1_auth/usuarios/create.blade.php`, `resources/views/p1_auth/usuarios/edit.blade.php`, `resources/views/p2_medicos/medicos/create.blade.php`
-- `tests/Feature/Etapa4Test.php`, `CONTEXT.md`, `HANDOFF.md`
+- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
+- `resources/views/p1_auth/usuarios/create.blade.php`
+- `tests/Feature/Etapa4Test.php`, `tests/Feature/Etapa2Test.php`
+- `HANDOFF.md`
 
 ## Next Step / Pending
-- Commit and push to GitHub `main` for automated Render live deployment (`medicita-si1-defensa`).
-- Verify the active ficha prevention live on the production site.
+- Confirm live deployment on Render (`https://medicita-si1-defensa.onrender.com`).

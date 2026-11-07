@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\P1\Rol;
+use App\Models\P2\Especialidad;
 use App\Models\User;
 use Database\Seeders\EspecialidadSeeder;
 use Database\Seeders\RolSeeder;
@@ -107,12 +108,15 @@ class Etapa2Test extends TestCase
     {
         $admin = User::where('email', 'admin@medicita.com')->first();
         $rolMedico = Rol::where('slug', 'medico')->first();
+        $especialidad = Especialidad::first();
 
         $response = $this->actingAs($admin)->post('/usuarios', [
             'name' => 'Dra. Gabriela Vega',
             'ci' => '77889900',
             'email' => 'dra.vega@medicita.com',
             'rol_id' => $rolMedico->id,
+            'especialidad_id' => $especialidad->id,
+            'nro_registro_medico' => 'COL-MED-7788',
             'telefono' => '79998888',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\P1\Rol;
+use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
@@ -426,21 +427,56 @@ class Etapa4Test extends TestCase
     public function test_user_registration_rejects_patient_role_and_enforces_password_complexity(): void
     {
         $rolPaciente = Rol::where('slug', 'paciente')->first();
+        $rolMedico = Rol::where('slug', 'medico')->first();
         $rolAdmin = Rol::where('slug', 'admin')->first();
+        $especialidad = Especialidad::first();
 
-        // 1. Intentar crear rol paciente desde /usuarios debe ser rechazado
-        $responseRolPaciente = $this->actingAs($this->admin)->post(route('usuarios.store'), [
-            'name' => 'Intento Paciente',
-            'ci' => '99887711',
-            'email' => 'intento.paciente@medicita.com',
+        // 1. Crear rol paciente requiere los campos del formulario CU7
+        $responseIncompleto = $this->actingAs($this->admin)->post(route('usuarios.store'), [
             'rol_id' => $rolPaciente->id,
-            'password' => 'PasswordSegura123!',
-            'password_confirmation' => 'PasswordSegura123!',
             'estado' => 'activo',
+            'ci' => '99887711',
+            'email' => 'paciente.incompleto@medicita.com',
         ]);
-        $responseRolPaciente->assertSessionHasErrors('rol_id');
+        $responseIncompleto->assertSessionHasErrors(['nombres', 'apellidos', 'fecha_nacimiento', 'telefono']);
 
-        // 2. Intentar registrar con contraseña débil (sin números ni símbolos)
+        // 2. Crear rol paciente con formulario completo CU7 registra User, Paciente e HistoriaClinica
+        $responsePacienteCompleto = $this->actingAs($this->admin)->post(route('usuarios.store'), [
+            'rol_id' => $rolPaciente->id,
+            'estado' => 'activo',
+            'ci' => '99887711',
+            'nombres' => 'Laura',
+            'apellidos' => 'Torrico Vaca',
+            'fecha_nacimiento' => '1995-04-12',
+            'genero' => 'Femenino',
+            'grupo_sanguineo' => 'O+',
+            'telefono' => '71122334',
+            'email' => 'laura.torrico@medicita.com',
+            'direccion' => 'Barrio Las Palmas',
+        ]);
+        $responsePacienteCompleto->assertRedirect(route('usuarios.index'));
+        $this->assertDatabaseHas('users', ['email' => 'laura.torrico@medicita.com', 'rol_id' => $rolPaciente->id]);
+        $this->assertDatabaseHas('pacientes', ['ci' => '99887711', 'nombres' => 'Laura', 'apellidos' => 'Torrico Vaca']);
+
+        // 3. Crear rol médico con formulario CU4 registra User, Medico y HorarioAtencion
+        $responseMedico = $this->actingAs($this->admin)->post(route('usuarios.store'), [
+            'rol_id' => $rolMedico->id,
+            'estado' => 'activo',
+            'name' => 'Dr. Marcelo Quiroga',
+            'ci' => '99887733',
+            'email' => 'marcelo.quiroga@medicita.com',
+            'telefono' => '72233445',
+            'especialidad_id' => $especialidad->id,
+            'nro_registro_medico' => 'COL-MED-9988',
+            'biografia' => 'Cirujano especialista',
+            'password' => 'MedicoSeguro123!',
+            'password_confirmation' => 'MedicoSeguro123!',
+        ]);
+        $responseMedico->assertRedirect(route('usuarios.index'));
+        $this->assertDatabaseHas('users', ['email' => 'marcelo.quiroga@medicita.com', 'rol_id' => $rolMedico->id]);
+        $this->assertDatabaseHas('medicos', ['nro_registro_medico' => 'COL-MED-9988', 'especialidad_id' => $especialidad->id]);
+
+        // 4. Intentar registrar con contraseña débil (sin números ni símbolos) en rol general
         $responsePassDebil = $this->actingAs($this->admin)->post(route('usuarios.store'), [
             'name' => 'Usuario Clave Debil',
             'ci' => '99887722',
