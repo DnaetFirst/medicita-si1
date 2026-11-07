@@ -31,6 +31,7 @@ class User extends Authenticatable
         'intentos_fallidos',
         'bloqueado_hasta',
         'avatar',
+        'debe_cambiar_password',
     ];
 
     protected $hidden = [
@@ -44,6 +45,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'bloqueado_hasta' => 'datetime',
             'password' => 'hashed',
+            'debe_cambiar_password' => 'boolean',
         ];
     }
 

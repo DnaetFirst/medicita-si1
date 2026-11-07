@@ -41,6 +41,7 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
 
     Route::get('/avisos', [AvisoController::class, 'index'])->name('avisos.index');
     Route::post('/avisos/{aviso}/leer', [AvisoController::class, 'leer'])->name('avisos.leer');
+    Route::post('/perfil/cambiar-password', [AuthController::class, 'cambiarPassword'])->name('perfil.password');
 
     Route::get('/historial', [HistorialController::class, 'index'])->name('historial.index');
     Route::get('/historia/{paciente}', [HistoriaController::class, 'show'])->name('historia.show');

@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -33,24 +34,26 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $credentials = $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|string',
         ], [
-            'email.required' => 'El correo electrónico es obligatorio.',
-            'email.email' => 'Ingresa un correo electrónico válido.',
+            'email.required' => 'El correo electrónico o número de carnet (CI) es obligatorio.',
             'password.required' => 'La contraseña es obligatoria.',
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        $identificador = trim($credentials['email']);
+        $user = User::where('email', $identificador)
+            ->orWhere('ci', $identificador)
+            ->first();
 
         // 1. Verificar si el usuario existe
         if (! $user) {
             BitacoraService::registrar('LOGIN_FALLIDO', 'P1_Seguridad', [
-                'email' => $credentials['email'],
+                'identificador' => $identificador,
                 'razon' => 'Usuario no encontrado',
             ]);
 
-            return back()->withInput($request->only('email'))->with('error', 'Credenciales inválidas. Verifica tu correo y contraseña.');
+            return back()->withInput($request->only('email'))->with('error', 'Credenciales inválidas. Verifica tu correo o CI y contraseña.');
         }
 
         // 2. Verificar si la cuenta está inactiva
@@ -79,10 +82,10 @@ class AuthController extends Controller
             $user->update(['intentos_fallidos' => 0, 'bloqueado_hasta' => null]);
         }
 
-        // 4. Intentar autenticación
+        // 4. Intentar autenticación con credenciales resueltas
         $remember = $request->boolean('remember');
 
-        if (Auth::attempt($credentials, $remember)) {
+        if (Auth::attempt(['email' => $user->email, 'password' => $credentials['password']], $remember)) {
             // Resetear contador de intentos fallidos y bloqueo
             $user->update([
                 'intentos_fallidos' => 0,
@@ -96,6 +99,10 @@ class AuthController extends Controller
                 'rol' => $user->rol?->nombre,
                 'ci' => $user->ci,
             ]);
+
+            if ($user->debe_cambiar_password) {
+                session()->flash('alerta_seguridad_password', 'Has ingresado con tu contraseña inicial por defecto (número de CI). Por tu seguridad, te recomendamos cambiarla inmediatamente.');
+            }
 
             return redirect()->intended(route('dashboard'))
                 ->with('success', "¡Bienvenido/a de nuevo, {$user->name}!");
@@ -149,5 +156,32 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('success', 'Sesión finalizada de manera segura.');
+    }
+
+    /**
+     * Permite al usuario autenticado cambiar su contraseña inicial por una personal (CU2).
+     */
+    public function cambiarPassword(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'password.required' => 'La nueva contraseña es obligatoria.',
+            'password.min' => 'La nueva contraseña debe tener al menos 6 caracteres.',
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+        ]);
+
+        $user = $request->user();
+        $user->update([
+            'password' => Hash::make($request->password),
+            'debe_cambiar_password' => false,
+        ]);
+
+        BitacoraService::registrar('CAMBIAR_PASSWORD', 'P1_Seguridad', [
+            'user_id' => $user->id,
+            'motivo' => 'Actualización de contraseña inicial',
+        ]);
+
+        return back()->with('success', '¡Tu contraseña ha sido actualizada con éxito! Tu cuenta ahora está protegida.');
     }
 }

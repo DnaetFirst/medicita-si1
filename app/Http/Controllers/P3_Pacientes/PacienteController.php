@@ -4,6 +4,7 @@ namespace App\Http\Controllers\P3_Pacientes;
 
 use App\Http\Controllers\Controller;
 use App\Models\P1\Rol;
+use App\Models\P3\HistoriaClinica;
 use App\Models\P3\Paciente;
 use App\Models\P3\ResponsableAutorizado;
 use App\Models\User;
@@ -111,29 +112,37 @@ class PacienteController extends Controller
         // Obtener el rol PAC
         $rolPaciente = Rol::where('slug', 'paciente')->first();
 
-        // Generar contraseña temporal segura (CU2: cambio obligatorio en primer acceso)
-        $passwordTemporal = Str::password(12, true, true, false);
+        // Contraseña inicial: Número de CI (carnet de identidad) para todo paciente
+        $passwordInicial = $validated['ci'];
 
         // Determinar email de acceso
         $emailAcceso = $validated['email'] ?? null;
         $emailGenerado = false;
         if (! $emailAcceso) {
-            // Sin email real, generar uno interno temporal para el registro
             $emailAcceso = 'pac.'.$validated['ci'].'@medicita.local';
             $emailGenerado = true;
         }
 
-        [$paciente, $usuario] = DB::transaction(function () use ($validated, $emailAcceso, $passwordTemporal, $rolPaciente) {
-            // 1. Crear cuenta de acceso PAC (CU2)
-            $usuario = User::create([
-                'name' => trim($validated['nombres'].' '.$validated['apellidos']),
-                'ci' => $validated['ci'],
-                'email' => $emailAcceso,
-                'password' => Hash::make($passwordTemporal),
-                'rol_id' => $rolPaciente?->id,
-                'telefono' => $validated['telefono'],
-                'estado' => 'activo',
-            ]);
+        [$paciente, $usuario] = DB::transaction(function () use ($validated, $emailAcceso, $passwordInicial, $rolPaciente) {
+            // 1. Crear o recuperar cuenta de acceso PAC con CI como contraseña inicial
+            $usuario = User::where('ci', $validated['ci'])->orWhere('email', $emailAcceso)->first();
+            if (! $usuario) {
+                $usuario = User::create([
+                    'name' => trim($validated['nombres'].' '.$validated['apellidos']),
+                    'ci' => $validated['ci'],
+                    'email' => $emailAcceso,
+                    'password' => Hash::make($passwordInicial),
+                    'rol_id' => $rolPaciente?->id,
+                    'telefono' => $validated['telefono'],
+                    'estado' => 'activo',
+                    'debe_cambiar_password' => true,
+                ]);
+            } else {
+                $usuario->update([
+                    'rol_id' => $rolPaciente?->id ?? $usuario->rol_id,
+                    'estado' => 'activo',
+                ]);
+            }
 
             // 2. Crear ficha clínica y vincular user_id (CU7)
             $paciente = Paciente::create([
@@ -152,15 +161,31 @@ class PacienteController extends Controller
                 'activo' => true,
             ]);
 
-            // 3. Responsable legal opcional
+            // 3. Crear historia clínica base
+            HistoriaClinica::firstOrCreate(
+                ['paciente_id' => $paciente->id],
+                [
+                    'nro_expediente' => 'HC-'.strtoupper(Str::random(8)),
+                    'version' => 1,
+                    'fecha_apertura' => now()->toDateString(),
+                ]
+            );
+
+            // 4. Responsable legal / tutor opcional
             if (! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres'])) {
+                $tutorUser = User::where('ci', $validated['resp_ci'])->first();
+
                 ResponsableAutorizado::create([
                     'paciente_id' => $paciente->id,
+                    'user_id' => $tutorUser?->id,
                     'ci' => $validated['resp_ci'],
                     'nombres' => $validated['resp_nombres'],
                     'parentesco' => $validated['resp_parentesco'],
                     'telefono' => $validated['resp_telefono'],
+                    'vigencia_inicio' => today(),
                     'fecha_limite_vigencia' => $validated['resp_vigencia'],
+                    'puede_gestionar_citas' => true,
+                    'puede_ver_resultados' => true,
                     'activo' => true,
                 ]);
             }
@@ -176,9 +201,9 @@ class PacienteController extends Controller
             'email' => $emailAcceso,
         ]);
 
-        $mensajePassword = $emailGenerado
-            ? "Paciente {$paciente->nombre_completo} registrado. ⚠️ No se proporcionó correo: acceso temporal creado con usuario <strong>{$emailAcceso}</strong> y contraseña: <strong>{$passwordTemporal}</strong>. Se recomienda actualizar el correo."
-            : "Paciente {$paciente->nombre_completo} registrado con cuenta de acceso al portal. Correo: <strong>{$emailAcceso}</strong> · Contraseña temporal: <strong>{$passwordTemporal}</strong> (deberá cambiarla en el primer acceso).";
+        $mensajePassword = "Paciente {$paciente->nombre_completo} registrado con cuenta vinculada de acceso al portal.<br>"
+            ."Identificador de acceso: <strong>{$emailAcceso}</strong> (o carnet: <strong>{$validated['ci']}</strong>)<br>"
+            ."Contraseña inicial: <strong>{$passwordInicial}</strong> (número de CI, se solicitará cambio por seguridad en el primer inicio de sesión).";
 
         return redirect()->route('pacientes.show', $paciente)
             ->with('success_html', $mensajePassword);
@@ -279,16 +304,40 @@ class PacienteController extends Controller
             'fecha_limite_vigencia.after' => 'La fecha límite de vigencia debe ser posterior a la fecha actual.',
         ]);
 
-        if (! empty($validated['user_id'])) {
-            $cuenta = User::findOrFail($validated['user_id']);
+        $tutorUserId = $validated['user_id'] ?? null;
+        if (! empty($tutorUserId)) {
+            $cuenta = User::findOrFail($tutorUserId);
             abort_unless($cuenta->isPaciente() && $cuenta->estado === 'activo' && $cuenta->ci === $validated['ci'], 422, 'La cuenta debe ser de paciente, estar activa y corresponder al CI del responsable.');
+        } else {
+            // Vincular automáticamente si ya existe una cuenta de usuario para este CI de tutor
+            $cuentaExistente = User::where('ci', $validated['ci'])->first();
+            if ($cuentaExistente) {
+                $tutorUserId = $cuentaExistente->id;
+            } else {
+                // Crear cuenta para el tutor con su CI como contraseña inicial
+                $rolPaciente = Rol::where('slug', 'paciente')->first();
+                $nuevoTutorUser = User::create([
+                    'name' => $validated['nombres'],
+                    'ci' => $validated['ci'],
+                    'email' => 'tutor.'.$validated['ci'].'@medicita.local',
+                    'password' => Hash::make($validated['ci']),
+                    'rol_id' => $rolPaciente?->id,
+                    'telefono' => $validated['telefono'],
+                    'estado' => 'activo',
+                    'debe_cambiar_password' => true,
+                ]);
+                $tutorUserId = $nuevoTutorUser->id;
+            }
         }
 
+        $puedeGestionar = $request->has('puede_gestionar_citas') ? $request->boolean('puede_gestionar_citas') : true;
+        $puedeVer = $request->has('puede_ver_resultados') ? $request->boolean('puede_ver_resultados') : true;
+
         $responsable = $paciente->responsables()->create([
-            'user_id' => $validated['user_id'] ?? null,
+            'user_id' => $tutorUserId,
             'vigencia_inicio' => $validated['vigencia_inicio'] ?? today(),
-            'puede_gestionar_citas' => $request->boolean('puede_gestionar_citas'),
-            'puede_ver_resultados' => $request->boolean('puede_ver_resultados'),
+            'puede_gestionar_citas' => $puedeGestionar,
+            'puede_ver_resultados' => $puedeVer,
             'ci' => $validated['ci'],
             'nombres' => $validated['nombres'],
             'parentesco' => $validated['parentesco'],
@@ -300,15 +349,16 @@ class PacienteController extends Controller
         BitacoraService::registrar('REGISTRAR_RESPONSABLE_AUTORIZADO', 'P3_Pacientes', [
             'paciente_id' => $paciente->id,
             'responsable_id' => $responsable->id,
+            'tutor_user_id' => $tutorUserId,
             'nombres' => $responsable->nombres,
             'vigencia' => $responsable->fecha_limite_vigencia->toDateString(),
         ]);
 
-        return back()->with('success', 'Responsable legal/autorizado registrado correctamente con vigencia verificada.');
+        return back()->with('success', 'Responsable legal/autorizado acreditado correctamente. El tutor puede gestionar citas y ver resultados desde su portal.');
     }
 
     /**
-     * Desactiva un responsable autorizado (CU7).
+     * Desactiva un responsable autorizado garantizando que el paciente no pierda ningún dato ni quede sin usuario (CU7).
      */
     public function destroyResponsable(Paciente $paciente, ResponsableAutorizado $responsable): RedirectResponse
     {
@@ -317,11 +367,33 @@ class PacienteController extends Controller
         $responsable->activo = false;
         $responsable->save();
 
+        // Garantizar que el paciente siempre cuente con su usuario PAC activo para gestionar sus datos autónomamente
+        if (! $paciente->user_id || ! $paciente->user) {
+            $rolPaciente = Rol::where('slug', 'paciente')->first();
+            $email = ! empty($paciente->email) ? $paciente->email : 'pac.'.$paciente->ci.'@medicita.local';
+            $usuario = User::firstOrCreate(
+                ['ci' => $paciente->ci],
+                [
+                    'name' => $paciente->nombre_completo,
+                    'email' => $email,
+                    'password' => Hash::make($paciente->ci),
+                    'rol_id' => $rolPaciente?->id,
+                    'telefono' => $paciente->telefono,
+                    'estado' => 'activo',
+                    'debe_cambiar_password' => true,
+                ]
+            );
+            $paciente->update(['user_id' => $usuario->id]);
+        } else {
+            $paciente->user->update(['estado' => 'activo']);
+        }
+
         BitacoraService::registrar('DESACTIVAR_RESPONSABLE_AUTORIZADO', 'P3_Pacientes', [
             'paciente_id' => $paciente->id,
             'responsable_id' => $responsable->id,
+            'detalle' => 'Tutoría revocada. Ficha clínica, citas y exámenes preservados íntegramente en la cuenta del paciente.',
         ]);
 
-        return back()->with('success', 'La autorización del responsable ha sido revocada.');
+        return back()->with('success', 'La tutoría ha sido revocada. Todos los datos, citas y resultados continúan íntegros y preservados en la cuenta del paciente.');
     }
 }

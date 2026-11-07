@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\P4_Citas;
 
 use App\Http\Controllers\Controller;
+use App\Models\P1\Rol;
 use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Derivacion;
+use App\Models\P3\HistoriaClinica;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
+use App\Models\User;
 use App\Services\AccesoPacienteService;
 use App\Services\BitacoraService;
 use App\Services\CitaWorkflowService;
@@ -18,6 +21,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -176,14 +180,45 @@ class CitaWizardController extends Controller
             } else {
                 $pacienteId = $request->integer('paciente_id');
                 if ($validatedPaciente !== null) {
-                    $pacienteId = Paciente::create([
+                    $rolPaciente = Rol::where('slug', 'paciente')->first();
+                    $emailUser = ! empty($validatedPaciente['nuevo_email'])
+                        ? $validatedPaciente['nuevo_email']
+                        : 'pac.'.$validatedPaciente['nuevo_ci'].'@medicita.local';
+
+                    $usuario = User::firstOrCreate(
+                        ['ci' => $validatedPaciente['nuevo_ci']],
+                        [
+                            'name' => trim($validatedPaciente['nuevo_nombres'].' '.$validatedPaciente['nuevo_apellidos']),
+                            'email' => $emailUser,
+                            'rol_id' => $rolPaciente?->id,
+                            'telefono' => $validatedPaciente['nuevo_telefono'],
+                            'password' => Hash::make($validatedPaciente['nuevo_ci']),
+                            'estado' => 'activo',
+                            'debe_cambiar_password' => true,
+                        ]
+                    );
+
+                    $nuevoPac = Paciente::create([
+                        'user_id' => $usuario->id,
                         'ci' => $validatedPaciente['nuevo_ci'],
                         'nombres' => $validatedPaciente['nuevo_nombres'],
                         'apellidos' => $validatedPaciente['nuevo_apellidos'],
                         'fecha_nacimiento' => $validatedPaciente['nuevo_fecha_nacimiento'],
                         'telefono' => $validatedPaciente['nuevo_telefono'],
+                        'email' => $validatedPaciente['nuevo_email'] ?? null,
                         'activo' => true,
-                    ])->id;
+                    ]);
+
+                    HistoriaClinica::firstOrCreate(
+                        ['paciente_id' => $nuevoPac->id],
+                        [
+                            'nro_expediente' => 'HC-'.strtoupper(Str::random(8)),
+                            'version' => 1,
+                            'fecha_apertura' => now()->toDateString(),
+                        ]
+                    );
+
+                    $pacienteId = $nuevoPac->id;
                 }
             }
 

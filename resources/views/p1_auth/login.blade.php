@@ -141,8 +141,8 @@
         @csrf
 
         <div class="form-group">
-            <label class="form-label" for="email">Correo Electrónico</label>
-            <input type="email" id="email" name="email" class="form-input" placeholder="ejemplo@medicita.com" value="{{ old('email') }}" required autofocus>
+            <label class="form-label" for="email">Correo Electrónico o Carnet de Identidad (CI)</label>
+            <input type="text" id="email" name="email" class="form-input" placeholder="ejemplo@medicita.com o Nro. de Carnet" value="{{ old('email') }}" required autofocus>
         </div>
 
         <div class="form-group">

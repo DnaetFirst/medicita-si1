@@ -348,4 +348,72 @@ class Etapa4Test extends TestCase
             'modulo' => 'P4_Citas',
         ]);
     }
+
+    /**
+     * CU7 + CU1: Creación de paciente genera usuario con CI como contraseña inicial y flag de cambio obligatorio.
+     */
+    public function test_patient_creation_creates_user_with_ci_password_and_security_flag(): void
+    {
+        $ci = '9871234';
+        $data = [
+            'ci' => $ci,
+            'nombres' => 'Marcelo',
+            'apellidos' => 'Claure',
+            'fecha_nacimiento' => '1995-04-12',
+            'genero' => 'Masculino',
+            'telefono' => '78912345',
+        ];
+
+        $response = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $data);
+        $response->assertRedirect();
+
+        $paciente = Paciente::where('ci', $ci)->first();
+        $this->assertNotNull($paciente);
+        $this->assertNotNull($paciente->user_id);
+
+        $usuario = $paciente->user;
+        $this->assertEquals($ci, $usuario->ci);
+        $this->assertTrue($usuario->isPaciente());
+        $this->assertTrue($usuario->debe_cambiar_password);
+
+        // Verificar que puede iniciar sesión usando su CI tanto en identificador como en contraseña
+        $this->post(route('login.post'), [
+            'email' => $ci,
+            'password' => $ci,
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($usuario);
+
+        // Cambiar contraseña por una personal
+        $responseCambio = $this->actingAs($usuario)->post(route('perfil.password'), [
+            'password' => 'NuevaClaveSegura123!',
+            'password_confirmation' => 'NuevaClaveSegura123!',
+        ]);
+
+        $responseCambio->assertRedirect();
+        $this->assertFalse($usuario->fresh()->debe_cambiar_password);
+    }
+
+    /**
+     * CU7: Revocación de tutoría preserva datos del paciente y mantiene cuenta autónoma activa.
+     */
+    public function test_tutor_revocation_preserves_patient_user_and_records(): void
+    {
+        $ciTutor = '7711223';
+        $responsable = $this->paciente->responsables()->create([
+            'ci' => $ciTutor,
+            'nombres' => 'Tutor Temporal',
+            'parentesco' => 'Tutor Legal',
+            'telefono' => '70011223',
+            'fecha_limite_vigencia' => now()->addMonths(6)->toDateString(),
+            'activo' => true,
+        ]);
+
+        $response = $this->actingAs($this->recepcionista)->delete(route('pacientes.responsables.destroy', [$this->paciente, $responsable]));
+        $response->assertRedirect();
+
+        $this->assertFalse($responsable->fresh()->activo);
+        $this->assertNotNull($this->paciente->fresh()->user_id);
+        $this->assertEquals('activo', $this->paciente->fresh()->user->estado);
+    }
 }

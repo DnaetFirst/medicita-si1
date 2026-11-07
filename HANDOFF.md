@@ -1,19 +1,20 @@
-# HANDOFF — Production Deployment & GitHub Sync Verified
+# HANDOFF — Patient User Accounts, CI Login & Guardian Data Safety
 
 ## Completed
-- Verified and established connection to PostgreSQL database on Neon.
-- Render web service deployed and live at `https://medicita-si1-defensa.onrender.com` on account `choque0caban`.
-- Automated migrations and health check `/up` verified (HTTP 200).
-- Successfully executed `DemostracionCompletaSeeder` populating 21 users, 6 doctors with specialties, 12 appointments, 3 lab orders with PDF results, 4 waitlist entries, and hundreds of schedule slots.
-- Verified live session authentication and real-time AI natural language reporting powered by Google Gemini.
-- Verified the working tree was clean before this handoff update.
-- Confirmed `main` and all four local development/feature branches matched their corresponding GitHub branches as of 2026-11-07.
+- Guaranteed all patients have linked `User` accounts with role `paciente` across standard creation and appointment wizard.
+- Set initial password to patient CI with `debe_cambiar_password` flag and forced security prompt on login.
+- Updated authentication to accept either email or CI for login credentials.
+- Enabled dual-role support for guardians who are also patients (`AccesoPacienteService`).
+- Hardened guardian revocation to preserve patient history, appointments, and lab results without data loss.
+- Added comprehensive feature tests in `tests/Feature/Etapa4Test.php` (all 146 project tests passing).
 
 ## Modified Files
-- `HANDOFF.md`
+- `database/migrations/2026_11_07_184025_add_debe_cambiar_password_to_users_table.php`
+- `app/Models/User.php`, `app/Http/Controllers/P1_Usuarios/AuthController.php`
+- `app/Http/Controllers/P3_Pacientes/PacienteController.php`, `app/Http/Controllers/P4_Citas/CitaWizardController.php`
+- `routes/web.php`, `resources/views/layouts/app.blade.php`, `resources/views/p1_auth/login.blade.php`
+- `resources/views/p3_pacientes/pacientes/show.blade.php`, `tests/Feature/Etapa4Test.php`, `CONTEXT.md`, `HANDOFF.md`
 
 ## Next Step / Pending
-- Push this synchronization record on `main`; no prior local changes or unpushed branch commits were found.
-- Continue with academic/clinical defense preparation.
-- Access the live system at `https://medicita-si1-defensa.onrender.com`.
-- Demo credentials are available directly as quick-fill buttons on the login page.
+- Commit and push to GitHub `main` to trigger automated Render deployment (`render-start.sh` will run migrations on Neon PostgreSQL).
+- Verify CI login and password change on production (`https://medicita-si1-defensa.onrender.com`).

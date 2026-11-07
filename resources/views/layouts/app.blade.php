@@ -82,6 +82,52 @@
                         @endforeach
                     </div>
                 @endif
+
+                @if(Auth::check() && Auth::user()->debe_cambiar_password)
+                    <div class="card" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #f59e0b; color: #92400e; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-radius: var(--border-radius-md); box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-size: 1.5rem;">⚠️</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.95rem; color: #78350f;">Aviso de Seguridad: Contraseña Inicial por Defecto</div>
+                                <div style="font-size: 0.85rem; color: #92400e;">Has iniciado sesión con tu contraseña inicial (número de carnet de identidad). Por tu seguridad y privacidad, te recomendamos cambiarla por una contraseña personal.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn" onclick="document.getElementById('modalCambioPassword').style.display = 'flex'" style="background: #f59e0b; color: white; border: none; font-weight: 600; font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: var(--border-radius-sm); cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Cambiar Mi Contraseña Ahora
+                        </button>
+                    </div>
+
+                    <!-- Modal para cambiar contraseña -->
+                    <div id="modalCambioPassword" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+                        <div class="card" style="max-width: 440px; width: 100%; background: white; padding: 1.75rem; border-radius: var(--border-radius-lg); box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h3 style="margin: 0; font-size: 1.15rem; color: var(--color-primary); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                                    <span>🔑</span> Actualizar Contraseña
+                                </h3>
+                                <button type="button" onclick="document.getElementById('modalCambioPassword').style.display = 'none'" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--color-text-muted);">&times;</button>
+                            </div>
+                            <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 1.25rem;">
+                                Ingresa tu nueva contraseña para reemplazar el número de carnet inicial.
+                            </p>
+                            <form method="POST" action="{{ route('perfil.password') }}">
+                                @csrf
+                                <div style="margin-bottom: 1rem;">
+                                    <label class="form-label">Nueva Contraseña (mínimo 6 caracteres)</label>
+                                    <input type="password" name="password" class="form-input" required minlength="6" placeholder="••••••••">
+                                </div>
+                                <div style="margin-bottom: 1.5rem;">
+                                    <label class="form-label">Confirmar Nueva Contraseña</label>
+                                    <input type="password" name="password_confirmation" class="form-input" required minlength="6" placeholder="••••••••">
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCambioPassword').style.display = 'none'">Cancelar</button>
+                                    <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.5rem;">Guardar y Proteger Cuenta</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                @endif
                 @yield('content')
             </main>
         </div>
