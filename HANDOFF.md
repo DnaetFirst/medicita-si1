@@ -1,18 +1,15 @@
-# HANDOFF — Render Blueprint SMTP Infrastructure & Email Delivery
+# HANDOFF — Maximum Security SMTP via Render Dashboard Secrets
 
 ## Completed
-- Configured production cloud SMTP credentials in `render.yaml` Blueprint:
-  - Added `MAIL_MAILER` (smtp), `MAIL_HOST` (smtp.gmail.com), `MAIL_PORT` (587).
-  - Added `MAIL_USERNAME` (ronny0ronaldo@gmail.com), `MAIL_PASSWORD` (jmdwsfpjgrlarqoh).
-  - Added `MAIL_ENCRYPTION` (tls), `MAIL_FROM_ADDRESS`, and `MAIL_FROM_NAME`.
-- Verified live end-to-end email delivery via Google SMTP:
-  - Dispatched confirmation email directly to recipient `choque0cabana@gmail.com`.
-  - Registered and dispatched new medical slip `FCH-20261112-TTNP`.
-- Total test suite: 171/171 passing (860 assertions).
+- Configured maximum security secret separation in `render.yaml`:
+  - Set `sync: false` for `MAIL_PASSWORD`, `MAIL_USERNAME`, and `MAIL_FROM_ADDRESS`, preventing credential leaks in Git history.
+  - Kept public protocol architecture (`smtp`, `smtp.gmail.com`, `587`, `tls`, `MediCita Pro`) in `render.yaml`.
+- Instructed user to inject sensitive secrets directly in Render Dashboard.
+- Verified test suite: 171/171 passing (860 assertions).
 
 ## Modified Files
 - `render.yaml`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Render auto-deploys `render.yaml` on push to main.
+- User adds `MAIL_PASSWORD`, `MAIL_USERNAME`, `MAIL_FROM_ADDRESS` in Render dashboard Environment tab.

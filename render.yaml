@@ -44,12 +44,12 @@ services:
       - key: MAIL_PORT
         value: "587"
       - key: MAIL_USERNAME
-        value: ronny0ronaldo@gmail.com
+        sync: false
       - key: MAIL_PASSWORD
-        value: jmdwsfpjgrlarqoh
+        sync: false
       - key: MAIL_ENCRYPTION
         value: tls
       - key: MAIL_FROM_ADDRESS
-        value: ronny0ronaldo@gmail.com
+        sync: false
       - key: MAIL_FROM_NAME
         value: MediCita Pro
