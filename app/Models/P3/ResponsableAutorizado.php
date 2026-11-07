@@ -2,6 +2,7 @@
 
 namespace App\Models\P3;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -28,6 +29,11 @@ class ResponsableAutorizado extends Model
     public function paciente(): BelongsTo
     {
         return $this->belongsTo(Paciente::class, 'paciente_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function isVigente(): bool

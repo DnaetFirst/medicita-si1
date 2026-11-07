@@ -385,6 +385,8 @@ class RecuperacionCupoService
                     'slot_id' => $oferta->slot_id,
                 ]);
 
+                NotificacionService::notificarOfertaExpiradaRecepcion($oferta);
+
                 // Avanzar al siguiente candidato
                 $siguiente = $this->evaluarRecuperacion($oferta->slot);
                 if (! $siguiente && $oferta->slot->estado !== 'reservado') {

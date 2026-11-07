@@ -13,6 +13,7 @@ use App\Models\P5\ResultadoLaboratorio;
 use App\Models\P7\Notificacion;
 use App\Services\AccesoPacienteService;
 use App\Services\BitacoraService;
+use App\Services\NotificacionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +122,8 @@ class LaboratorioController extends Controller
 
             return $orden;
         }, 3);
+
+        NotificacionService::notificarOrdenLaboratorio($orden);
 
         return redirect()->route('laboratorio.ordenes.show', $orden)->with('success', "Orden de laboratorio {$orden->codigo_orden} emitida con éxito.");
     }
@@ -426,6 +429,23 @@ class LaboratorioController extends Controller
 
             if ($aviso->wasRecentlyCreated) {
                 EnviarAviso::dispatch($aviso->id)->afterCommit();
+            }
+        }
+
+        $medicoUser = $resultado->orden->medico?->user;
+        if ($medicoUser) {
+            $avisoDoc = Notificacion::firstOrCreate([
+                'evento_id' => 'lab:pub:doc:'.$resultado->id.':'.$medicoUser->id,
+            ], [
+                'user_id' => $medicoUser->id,
+                'tipo' => 'laboratorio',
+                'titulo' => 'Resultados de laboratorio disponibles',
+                'mensaje' => "El informe de laboratorio {$resultado->codigo_resultado} del paciente {$paciente->nombre_completo} ha sido publicado y está disponible en su historial.",
+                'leido' => false,
+            ]);
+
+            if ($avisoDoc->wasRecentlyCreated) {
+                EnviarAviso::dispatch($avisoDoc->id)->afterCommit();
             }
         }
     }

@@ -6,6 +6,7 @@ use App\Mail\AvisoCitaMail;
 use App\Models\P4\Cita;
 use App\Models\P7\Notificacion;
 use App\Services\AccesoPacienteService;
+use App\Services\NotificacionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,9 @@ class EnviarAviso implements ShouldQueue
             } catch (Throwable $exception) {
                 $aviso->update(['estado_envio' => 'fallido']);
                 Log::warning('Fallo de envío de aviso', ['aviso_id' => $aviso->id]);
+                if ($aviso->intentos >= 5) {
+                    NotificacionService::notificarAdminFalloSmtp($aviso);
+                }
             }
         });
     }

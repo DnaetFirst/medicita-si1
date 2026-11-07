@@ -5,6 +5,7 @@ namespace App\Http\Controllers\P1_Usuarios;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\BitacoraService;
+use App\Services\NotificacionService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -123,6 +124,8 @@ class AuthController extends Controller
                 'intentos' => $intentos,
                 'duracion' => '15 minutos',
             ]);
+
+            NotificacionService::notificarAdminSeguridad($user);
 
             return back()->with('error', 'Has superado el límite de 3 intentos fallidos. Tu cuenta ha sido bloqueada temporalmente por 15 minutos.');
         }

@@ -87,6 +87,7 @@ class BloqueoController extends Controller
                 $generator->liberarSlot($slot);
             }
             BitacoraService::registrar('CREAR_BLOQUEO_AGENDA', 'P2_Medicos', ['bloqueo_id' => $bloqueo->id]);
+            NotificacionService::notificarAdminBloqueo($bloqueo);
         }, 3);
 
         return redirect()->route('bloqueos.index')->with('success', 'Bloqueo registrado. Las citas pendientes quedaron postergadas; las atenciones iniciadas se conservan.');

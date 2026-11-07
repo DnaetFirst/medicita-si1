@@ -74,6 +74,7 @@ class CitaWorkflowService
                     $anterior,
                     'Marcado automáticamente por el sistema tras transcurrir más de 15 minutos sin confirmación de asistencia.'
                 );
+                NotificacionService::notificarInasistenciaRecepcion($cita);
                 $contador++;
             }
         }
@@ -209,6 +210,8 @@ class CitaWorkflowService
                 $this->slots->liberarSlot($anterior->slot);
                 NotificacionService::registrarEvento($cita, $evento->operacion_id, $accion);
                 app(RecuperacionCupoService::class)->evaluarRecuperacion($anterior->slot);
+            } elseif ($accion === 'llegada') {
+                NotificacionService::notificarLlegadaDoctor($cita, $evento->operacion_id);
             }
 
             return $cita;

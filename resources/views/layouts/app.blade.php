@@ -54,6 +54,32 @@
             </header>
 
             <main class="page-body">
+                @auth
+                    @php
+                        $totalAvisosNoLeidos = Auth::user()->notificaciones()->where('leido', false)->count();
+                    @endphp
+                    @if($totalAvisosNoLeidos > 0 && !request()->routeIs('avisos.index'))
+                        <div class="card" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border-left: 4px solid var(--color-primary); color: #1e3a8a; padding: 0.95rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-radius: var(--border-radius-md); box-shadow: 0 2px 6px rgba(13, 124, 124, 0.12);">
+                            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+                                    🔔
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
+                                        Tienes {{ $totalAvisosNoLeidos }} {{ $totalAvisosNoLeidos === 1 ? 'nuevo aviso sin leer' : 'nuevos avisos sin leer' }}
+                                    </div>
+                                    <div style="font-size: 0.82rem; color: var(--color-text-muted);">
+                                        Tienes notificaciones y actualizaciones clínicas pendientes de revisión en tu buzón.
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="{{ route('avisos.index') }}" class="btn btn-primary" style="padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 600; text-decoration: none; box-shadow: 0 2px 6px rgba(13,124,124,0.25);">
+                                Revisar Avisos ({{ $totalAvisosNoLeidos }})
+                            </a>
+                        </div>
+                    @endif
+                @endauth
+
                 @if(session('success_html'))
                     <div class="card" style="background: var(--color-success-bg, #f0fdf4); border-color: var(--color-success, #16a34a); color: var(--color-success, #16a34a); padding: 0.85rem 1.25rem; line-height: 1.6;">
                         {!! session('success_html') !!}
