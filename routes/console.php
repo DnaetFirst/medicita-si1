@@ -4,6 +4,7 @@ use App\Jobs\EnviarAviso;
 use App\Models\P1\Rol;
 use App\Models\P7\Notificacion;
 use App\Models\User;
+use App\Services\CitaWorkflowService;
 use App\Services\RecuperacionCupoService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -62,3 +63,7 @@ Schedule::call(function (): void {
 Schedule::call(function (): void {
     app(RecuperacionCupoService::class)->procesarOfertasVencidas();
 })->name('procesar-ofertas-vencidas')->everyMinute()->withoutOverlapping();
+
+Schedule::call(function (): void {
+    app(CitaWorkflowService::class)->procesarInasistenciasAutomaticas();
+})->name('marcar-inasistencias-vencidas')->everyMinute()->withoutOverlapping();

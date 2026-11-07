@@ -71,11 +71,28 @@ class CitaWizardController extends Controller
                 ->get();
         }
 
+        app(CitaWorkflowService::class)->procesarInasistenciasAutomaticas();
+
+        $limite30Min = now()->subMinutes(30)->format('H:i:s');
+        $hoy = today()->toDateString();
+
+        $filtroCitasActivas = function ($q) use ($hoy, $limite30Min) {
+            $q->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])
+                ->where(function ($sub) use ($hoy, $limite30Min) {
+                    $sub->whereDate('fecha', '>', $hoy)
+                        ->orWhere(function ($s) use ($hoy, $limite30Min) {
+                            $s->whereDate('fecha', $hoy)
+                                ->where('hora', '>', $limite30Min);
+                        });
+                })
+                ->with(['medico.user', 'medico.especialidad']);
+        };
+
         $fichaActiva = null;
         if ($request->user()->isPaciente()) {
             $pacientes = app(AccesoPacienteService::class)->pacientes($request->user())
                 ->where('activo', true)
-                ->with(['citas' => fn ($q) => $q->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])->with(['medico.user', 'medico.especialidad'])])
+                ->with(['citas' => $filtroCitasActivas])
                 ->get();
             $pacientePreseleccionado = $selectedPacienteId ? $pacientes->firstWhere('id', (int) $selectedPacienteId) : $pacientes->first();
             abort_if($selectedPacienteId && ! $pacientePreseleccionado, 403);
@@ -83,7 +100,7 @@ class CitaWizardController extends Controller
             $fichaActiva = $pacientePreseleccionado?->citas?->first();
         } else {
             $pacientes = Paciente::where('activo', true)
-                ->with(['citas' => fn ($q) => $q->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])->with(['medico.user', 'medico.especialidad'])])
+                ->with(['citas' => $filtroCitasActivas])
                 ->orderBy('nombres')
                 ->get();
             $pacientePreseleccionado = $selectedPacienteId ? $pacientes->firstWhere('id', (int) $selectedPacienteId) : null;

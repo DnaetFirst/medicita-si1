@@ -10,6 +10,7 @@ use App\Models\P3\Paciente;
 use App\Models\P3\ResponsableAutorizado;
 use App\Models\P4\Cita;
 use App\Models\User;
+use App\Services\CitaWorkflowService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -764,5 +765,80 @@ class Etapa4Test extends TestCase
         // 4. Verificar que sigue siendo tutor de su hijo en la misma cuenta
         $hijo = Paciente::where('ci', '11223344')->first();
         $this->assertTrue(ResponsableAutorizado::where('user_id', $userTutor->id)->where('paciente_id', $hijo->id)->exists());
+    }
+
+    /**
+     * CU8: Citas no marcadas como atendidas/asistidas se pasan automáticamente a 'inasistencia'
+     * una vez transcurridos 15 minutos de su hora de inicio.
+     */
+    public function test_unattended_appointment_automatically_transitions_to_inasistencia_after_15_minutes(): void
+    {
+        $horaPasada = now()->subMinutes(20)->format('H:i');
+        $citaAntigua = Cita::create([
+            'codigo_ficha' => 'FCH-'.today()->format('Ymd').'-AUTOINASIST',
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $this->slot->id,
+            'fecha' => today(),
+            'hora' => $horaPasada,
+            'estado' => 'programada',
+        ]);
+
+        $procesadas = app(CitaWorkflowService::class)->procesarInasistenciasAutomaticas($this->paciente);
+        $this->assertGreaterThanOrEqual(1, $procesadas);
+
+        $citaAntigua->refresh();
+        $this->assertEquals('inasistencia', $citaAntigua->estado);
+        $this->assertDatabaseHas('historial_citas', [
+            'cita_id' => $citaAntigua->id,
+            'operacion' => 'INASISTENCIA',
+            'estado_nuevo' => 'inasistencia',
+        ]);
+    }
+
+    /**
+     * CU8: Una cita anterior de ayer o que ya pasó hace más de 30 minutos
+     * NO bloquea la emisión de una nueva ficha médica.
+     */
+    public function test_past_appointment_older_than_30_minutes_does_not_block_booking_new_appointment(): void
+    {
+        // 1. Cita del día de ayer que quedó en estado 'programada'
+        Cita::create([
+            'codigo_ficha' => 'FCH-AYER-001',
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $this->slot->id,
+            'fecha' => today()->subDay(),
+            'hora' => '10:00',
+            'estado' => 'programada',
+        ]);
+
+        // 2. Nuevo slot futuro para reservar
+        $nuevoSlot = Slot::create([
+            'medico_id' => $this->medico->id,
+            'fecha' => today()->addDays(5)->toDateString(),
+            'hora_inicio' => '09:00',
+            'hora_fin' => '09:15',
+            'estado' => 'disponible',
+        ]);
+
+        // 3. El paciente debe poder solicitar la nueva ficha sin bloqueo
+        $response = $this->actingAs($this->recepcionista)->post(route('citas.store'), [
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $nuevoSlot->id,
+            'fecha' => $nuevoSlot->fecha->toDateString(),
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+        $this->assertDatabaseHas('citas', [
+            'paciente_id' => $this->paciente->id,
+            'slot_id' => $nuevoSlot->id,
+            'estado' => 'programada',
+        ]);
+
+        // La cita de ayer debió ser actualizada automáticamente a inasistencia
+        $this->assertEquals('inasistencia', Cita::where('codigo_ficha', 'FCH-AYER-001')->value('estado'));
     }
 }

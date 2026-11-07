@@ -19,6 +19,8 @@ class CitaController extends Controller
      */
     public function index(Request $request): View
     {
+        app(CitaWorkflowService::class)->procesarInasistenciasAutomaticas();
+
         $query = Cita::query();
         if ($request->user()->isMedico()) {
             $query->where('medico_id', $request->user()->medico?->id ?? 0);

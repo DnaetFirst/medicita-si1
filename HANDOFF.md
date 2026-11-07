@@ -1,20 +1,23 @@
-# HANDOFF — Allow Non-Patient Tutors to Register as Patients
+# HANDOFF — Auto-Inasistencia After 15m and Allow New Appointment After 30m
 
 ## Completed
-- Allowed tutors without patient records to register as patients reusing their user account:
-  - `PacienteController@store`: Added `$tutorSinFichaId` check so tutors with existing CI and email can register as patients without uniqueness errors.
-  - `UsuarioController@storePaciente`: Reuses existing user if registering a tutor as a patient.
-  - `CitaWizardController@store`: Reuses existing tutor user in wizard inline patient creation.
-  - `Paciente`: Added `historiaClinica(): HasOne` relationship.
-- Added feature test in `tests/Feature/Etapa4Test.php`:
-  - `test_tutor_without_patient_record_can_register_as_patient_with_same_ci_and_email`
-- Formatted with Pint and running full test suite.
+- Implemented automatic inasistencia transition:
+  - `CitaWorkflowService@procesarInasistenciasAutomaticas`: Transitions appointments in `programada` or `confirmada` to `inasistencia` when over 15 minutes past start time without attendance.
+  - Scheduled in `routes/console.php` every minute.
+  - Invoked dynamically in `CitaWorkflowService@validarCupo`, `CitaWizardController@create`, and `CitaController@index`.
+- Updated active appointment blocking rule:
+  - `CitaWorkflowService@validarCupo`: An appointment only blocks booking a new one if it is future or within 30 minutes of start time. Appointments older than 30 minutes or from previous days do not block.
+  - `CitaWizardController@create`: Filtered `$paciente->citas` so past appointments (>30m) do not block or trigger the active appointment warning in wizard UI.
+- Added feature tests in `tests/Feature/Etapa4Test.php`:
+  - `test_unattended_appointment_automatically_transitions_to_inasistencia_after_15_minutes`
+  - `test_past_appointment_older_than_30_minutes_does_not_block_booking_new_appointment`
+- Ran Pint and running full test suite.
 
 ## Modified Files
-- `app/Http/Controllers/P3_Pacientes/PacienteController.php`
-- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
+- `app/Services/CitaWorkflowService.php`
 - `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `app/Models/P3/Paciente.php`
+- `app/Http/Controllers/P4_Citas/CitaController.php`
+- `routes/console.php`
 - `tests/Feature/Etapa4Test.php`
 - `HANDOFF.md`
 

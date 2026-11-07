@@ -34,8 +34,58 @@ class CitaWorkflowService
         return $evento;
     }
 
+    /**
+     * Marca automáticamente como 'inasistencia' aquellas citas en estado 'programada' o 'confirmada'
+     * cuya hora de atención ya pasó hace más de 15 minutos sin que se haya registrado asistencia/atención.
+     */
+    public function procesarInasistenciasAutomaticas(?Paciente $paciente = null): int
+    {
+        $limite15Min = now()->subMinutes(15);
+        $limiteHora = $limite15Min->format('H:i:s');
+        $hoy = today()->toDateString();
+
+        $query = Cita::whereIn('estado', ['programada', 'confirmada'])
+            ->where(function ($q) use ($hoy, $limiteHora) {
+                $q->whereDate('fecha', '<', $hoy)
+                    ->orWhere(function ($sub) use ($hoy, $limiteHora) {
+                        $sub->whereDate('fecha', $hoy)
+                            ->where('hora', '<=', $limiteHora);
+                    });
+            });
+
+        if ($paciente) {
+            $query->where('paciente_id', $paciente->id);
+        }
+
+        $citasVencidas = $query->lockForUpdate()->get();
+        $contador = 0;
+
+        foreach ($citasVencidas as $cita) {
+            $inicioCita = Carbon::parse($cita->fecha->toDateString().' '.$cita->hora);
+            if ($inicioCita->copy()->addMinutes(15)->lte(now())) {
+                $anterior = clone $cita;
+                $cita->estado = 'inasistencia';
+                $cita->version++;
+                $cita->save();
+
+                $this->registrar(
+                    $cita,
+                    'INASISTENCIA',
+                    $anterior,
+                    'Marcado automáticamente por el sistema tras transcurrir más de 15 minutos sin confirmación de asistencia.'
+                );
+                $contador++;
+            }
+        }
+
+        return $contador;
+    }
+
     public function validarCupo(Slot $slot, Paciente $paciente, ?int $exceptoCita = null, ?int $exceptoDerivacionCita = null): void
     {
+        // 1. Limpieza de citas vencidas (+15 min) marcándolas automáticamente como inasistencia
+        $this->procesarInasistenciasAutomaticas($paciente);
+
         abort_unless($paciente->activo && $slot->estado === 'disponible', 422, 'El paciente o el turno no están disponibles.');
         abort_unless($slot->medico->estado === 'activo' && $slot->medico->user->estado === 'activo' && $slot->medico->especialidad->activo, 422, 'El médico o la especialidad no están disponibles.');
         abort_if(Carbon::parse($slot->fecha->toDateString().' '.$slot->hora_inicio)->lte(now()), 422, 'El turno debe ser futuro.');
@@ -53,13 +103,31 @@ class CitaWorkflowService
             abort_if($horario->descanso_inicio && $slot->hora_inicio < $horario->descanso_fin && $slot->hora_fin > $horario->descanso_inicio, 422, 'El turno coincide con un descanso.');
         }
 
-        // Regla: Si el paciente ya tiene una ficha activa, no puede sacar otra ficha
-        $citaActiva = Cita::where('paciente_id', $paciente->id)
+        // Regla: Si el paciente ya tiene una ficha activa, no puede sacar otra ficha.
+        // Se considera activa si es futura o si aún no han transcurrido 30 minutos desde su hora de inicio.
+        $limite30Min = now()->subMinutes(30);
+        $limiteHora30 = $limite30Min->format('H:i:s');
+        $hoy = today()->toDateString();
+
+        $citasActivas = Cita::where('paciente_id', $paciente->id)
             ->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])
+            ->where(function ($q) use ($hoy, $limiteHora30) {
+                $q->whereDate('fecha', '>', $hoy)
+                    ->orWhere(function ($sub) use ($hoy, $limiteHora30) {
+                        $sub->whereDate('fecha', $hoy)
+                            ->where('hora', '>', $limiteHora30);
+                    });
+            })
             ->when($exceptoCita, fn ($q) => $q->where('id', '!=', $exceptoCita))
             ->when($exceptoDerivacionCita, fn ($q) => $q->where('id', '!=', $exceptoDerivacionCita))
             ->with(['medico.user'])
-            ->first();
+            ->get();
+
+        $citaActiva = $citasActivas->first(function ($c) {
+            $inicio = Carbon::parse($c->fecha->toDateString().' '.$c->hora);
+
+            return $inicio->copy()->addMinutes(30)->isFuture();
+        });
 
         if ($citaActiva) {
             $fechaFmt = $citaActiva->fecha ? $citaActiva->fecha->format('d/m/Y') : '';
