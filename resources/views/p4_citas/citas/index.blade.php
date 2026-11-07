@@ -58,6 +58,7 @@
             </select>
         </div>
 
+        @unless(auth()->user()->isMedico())
         <div style="flex: 1; min-width: 160px;">
             <select name="medico_id" class="form-input" style="width: 100%;">
                 <option value="">Todos los Médicos</option>
@@ -68,6 +69,7 @@
                 @endforeach
             </select>
         </div>
+        @endunless
 
         <div style="flex: 1; min-width: 140px;">
             <select name="estado" class="form-input" style="width: 100%;">

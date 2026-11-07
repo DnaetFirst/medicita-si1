@@ -32,7 +32,7 @@ class CitaController extends Controller
             $query->whereDate('fecha', $request->fecha);
         }
 
-        if ($request->filled('medico_id')) {
+        if (! $request->user()->isMedico() && $request->filled('medico_id')) {
             $query->where('medico_id', $request->medico_id);
         }
 
@@ -58,7 +58,9 @@ class CitaController extends Controller
 
         $citas = $query->paginate(15)->withQueryString();
 
-        $medicos = Medico::with('user')->where('estado', 'activo')->get();
+        $medicos = $request->user()->isMedico()
+            ? Medico::with('user')->where('id', $request->user()->medico?->id ?? 0)->get()
+            : Medico::with('user')->where('estado', 'activo')->get();
         $especialidades = Especialidad::where('activo', true)->get();
 
         $dailyQuery = Cita::whereDate('fecha', today());

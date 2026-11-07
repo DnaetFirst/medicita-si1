@@ -25,13 +25,42 @@ class HistorialController extends Controller
             'estado' => ['nullable', Rule::in(['programada', 'confirmada', 'en_espera', 'en_atencion', 'atendida', 'cancelada', 'postergada', 'inasistencia'])],
         ]);
         $pacientes = $acceso->pacientes($request->user())->orderBy('nombres')->get();
-        $paciente = isset($datos['paciente_id']) ? $pacientes->firstWhere('id', (int) $datos['paciente_id']) : $pacientes->first();
-        abort_if(isset($datos['paciente_id']) && ! $paciente, 403);
-        $query = Cita::with(['medico.user', 'medico.especialidad', 'historial.autor'])->where('paciente_id', $paciente?->id ?? 0);
-        foreach (['estado', 'medico_id'] as $campo) {
-            if (! empty($datos[$campo])) {
-                $query->where($campo, $datos[$campo]);
+
+        $paciente = null;
+        if ($request->filled('paciente_id')) {
+            $paciente = $pacientes->firstWhere('id', (int) $datos['paciente_id']);
+            if ($request->user()->isPaciente() && ! $paciente) {
+                abort(403);
             }
+        } elseif ($request->user()->isPaciente()) {
+            $paciente = $pacientes->first();
+        }
+
+        $query = Cita::with(['medico.user', 'medico.especialidad', 'historial.autor']);
+
+        // Cada médico ve estrictamente solo sus citas asignadas
+        if ($request->user()->isMedico()) {
+            $query->where('medico_id', $request->user()->medico?->id ?? 0);
+        } elseif (! empty($datos['medico_id'])) {
+            $query->where('medico_id', $datos['medico_id']);
+        }
+
+        // Filtro por paciente o conjunto permitido
+        if ($request->filled('paciente_id')) {
+            if ($paciente) {
+                $query->where('paciente_id', $paciente->id);
+            } else {
+                // Paciente filtrado no encontrado o sin citas vinculadas -> mostrar vacío
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($request->user()->isPaciente()) {
+            $query->where('paciente_id', $paciente?->id ?? 0);
+        } elseif ($request->user()->isMedico()) {
+            $query->whereIn('paciente_id', $pacientes->pluck('id'));
+        }
+
+        if (! empty($datos['estado'])) {
+            $query->where('estado', $datos['estado']);
         }
         if (! empty($datos['desde'])) {
             $query->whereDate('fecha', '>=', $datos['desde']);
@@ -47,10 +76,22 @@ class HistorialController extends Controller
             BitacoraService::registrar('CONSULTAR_HISTORIAL', 'P3_Pacientes', ['paciente_id' => $paciente->id]);
         }
 
+        $derivaciones = collect();
+        if ($paciente && ! $request->user()->isMedico()) {
+            $derivaciones = Derivacion::with('especialidad')
+                ->where('estado', 'emitida')
+                ->whereHas('atencion.historia', fn ($q) => $q->where('paciente_id', $paciente->id))
+                ->get();
+        }
+
+        $medicos = $request->user()->isMedico()
+            ? Medico::with('user')->where('id', $request->user()->medico?->id ?? 0)->get()
+            : Medico::with('user')->where('estado', 'activo')->get();
+
         return view('p3_pacientes.historial.index', [
             'pacientes' => $pacientes, 'paciente' => $paciente, 'citas' => $citas,
-            'derivaciones' => Derivacion::with('especialidad')->where('estado', 'emitida')->whereHas('atencion.historia', fn ($q) => $q->where('paciente_id', $paciente?->id ?? 0))->get(),
-            'especialidades' => Especialidad::orderBy('nombre')->get(), 'medicos' => Medico::with('user')->get(),
+            'derivaciones' => $derivaciones,
+            'especialidades' => Especialidad::where('activo', true)->orderBy('nombre')->get(), 'medicos' => $medicos,
             'header' => 'Historial de citas',
         ]);
     }

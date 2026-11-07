@@ -305,4 +305,49 @@ class CicloDosEtapaUnoTest extends TestCase
         Mail::assertNothingSent();
         $this->assertDatabaseHas('notificaciones', ['id' => $aviso->id, 'estado_envio' => 'revocado']);
     }
+
+    public function test_doctor_sees_only_own_appointments_in_history_and_empty_filters(): void
+    {
+        $medico1 = Medico::factory()->create();
+        $medico2 = Medico::factory()->create();
+        $paciente = Paciente::factory()->create();
+
+        // El paciente tiene 1 cita con médico 1 y 1 cita con médico 2
+        $cita1 = Cita::factory()->create([
+            'paciente_id' => $paciente->id,
+            'medico_id' => $medico1->id,
+            'codigo_ficha' => 'FCH-MED1-001',
+            'fecha' => '2026-11-07',
+        ]);
+        $cita2 = Cita::factory()->create([
+            'paciente_id' => $paciente->id,
+            'medico_id' => $medico2->id,
+            'codigo_ficha' => 'FCH-MED2-002',
+            'fecha' => '2026-11-07',
+        ]);
+
+        // 1. Médico 1 consulta el historial del paciente: solo ve su cita y NO la del Médico 2
+        $response1 = $this->actingAs($medico1->user)->get(route('historial.index', ['paciente_id' => $paciente->id]));
+        $response1->assertOk()
+            ->assertSee('FCH-MED1-001')
+            ->assertDontSee('FCH-MED2-002');
+
+        // 2. Médico 2 consulta el historial del paciente: solo ve su cita y NO la del Médico 1
+        $response2 = $this->actingAs($medico2->user)->get(route('historial.index', ['paciente_id' => $paciente->id]));
+        $response2->assertOk()
+            ->assertSee('FCH-MED2-002')
+            ->assertDontSee('FCH-MED1-001');
+
+        // 3. Cuando se filtra y no hay resultados, muestra estado vacío limpiamente sin errores
+        $responseFiltroVacio = $this->actingAs($medico1->user)->get(route('historial.index', [
+            'paciente_id' => $paciente->id,
+            'desde' => '2026-11-20',
+            'hasta' => '2026-11-25',
+        ]));
+        $responseFiltroVacio->assertOk()
+            ->assertSee('No se encontraron citas')
+            ->assertSee('No existen registros que coincidan con los filtros seleccionados')
+            ->assertDontSee('FCH-MED1-001')
+            ->assertDontSee('FCH-MED2-002');
+    }
 }
