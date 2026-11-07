@@ -169,10 +169,22 @@ class PacienteController extends Controller
             // 4. Responsable legal / tutor opcional
             if (! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres'])) {
                 $tutorUser = User::where('ci', $validated['resp_ci'])->first();
+                if (! $tutorUser) {
+                    $tutorUser = User::create([
+                        'name' => $validated['resp_nombres'],
+                        'ci' => $validated['resp_ci'],
+                        'email' => 'tutor.'.$validated['resp_ci'].'@medicita.local',
+                        'password' => Hash::make($validated['resp_ci']),
+                        'rol_id' => $rolPaciente?->id,
+                        'telefono' => $validated['resp_telefono'],
+                        'estado' => 'activo',
+                        'debe_cambiar_password' => true,
+                    ]);
+                }
 
                 ResponsableAutorizado::create([
                     'paciente_id' => $paciente->id,
-                    'user_id' => $tutorUser?->id,
+                    'user_id' => $tutorUser->id,
                     'ci' => $validated['resp_ci'],
                     'nombres' => $validated['resp_nombres'],
                     'parentesco' => $validated['resp_parentesco'],

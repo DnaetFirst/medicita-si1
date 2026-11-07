@@ -219,43 +219,150 @@
                     </div>
                 </div>
 
-                <!-- Nuevo Paciente Inline -->
+                <!-- Nuevo Paciente Inline: Formulario Completo de Paciente (CU7) -->
                 <input type="hidden" name="crear_paciente_nuevo" id="crearPacienteNuevo" value="0">
-                <div id="seccionPacienteNuevo" style="display: none; background: var(--color-surface-hover); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; border: 1px dashed var(--color-border);">
-                    <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; color: var(--color-primary); font-weight: 700;">Datos del Nuevo Paciente</h4>
+                <div id="seccionPacienteNuevo" style="display: none; background: var(--color-surface-hover); padding: 1.5rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; border: 1px dashed var(--color-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; font-size: 1.05rem; color: var(--color-primary); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            Ficha de Registro de Nuevo Paciente (CU7)
+                        </h4>
+                        <span style="font-size: 0.75rem; color: var(--color-text-muted); background: white; padding: 0.25rem 0.6rem; border-radius: 4px; border: 1px solid var(--color-border);">
+                            * Campos obligatorios
+                        </span>
+                    </div>
+
+                    <!-- Sección 1: Datos Personales y de Identificación -->
+                    <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0 0 0.75rem 0; border-bottom: 1px solid var(--color-border); padding-bottom: 0.4rem;">
+                        1. Datos Personales y de Identificación
+                    </h5>
+
                     <div class="grid-2" style="margin-bottom: 0.75rem;">
                         <div>
                             <label class="form-label">Cédula de Identidad (CI) *</label>
-                            <input type="text" name="nuevo_ci" id="nuevo_ci" class="form-input" placeholder="Ej. 9988776" value="{{ old('nuevo_ci') }}">
+                            <input type="text" name="nuevo_ci" id="nuevo_ci" class="form-input" placeholder="Ej. 8472910" value="{{ old('nuevo_ci') }}">
                         </div>
                         <div>
                             <label class="form-label">Fecha de Nacimiento *</label>
                             <input type="date" name="nuevo_fecha_nacimiento" id="nuevo_fecha_nacimiento" class="form-input" max="{{ date('Y-m-d') }}" value="{{ old('nuevo_fecha_nacimiento') }}">
                         </div>
                     </div>
+
                     <div class="grid-2" style="margin-bottom: 0.75rem;">
                         <div>
-                            <label class="form-label">Nombres *</label>
-                            <input type="text" name="nuevo_nombres" id="nuevo_nombres" class="form-input" placeholder="Ej. Ana Lucía" value="{{ old('nuevo_nombres') }}">
+                            <label class="form-label">Nombres Completos *</label>
+                            <input type="text" name="nuevo_nombres" id="nuevo_nombres" class="form-input" placeholder="Ej. Carlos Eduardo" value="{{ old('nuevo_nombres') }}">
                         </div>
                         <div>
                             <label class="form-label">Apellidos *</label>
-                            <input type="text" name="nuevo_apellidos" id="nuevo_apellidos" class="form-input" placeholder="Ej. Paz Terrazas" value="{{ old('nuevo_apellidos') }}">
+                            <input type="text" name="nuevo_apellidos" id="nuevo_apellidos" class="form-input" placeholder="Ej. Gómez Salazar" value="{{ old('nuevo_apellidos') }}">
                         </div>
                     </div>
+
+                    <div class="grid-2" style="margin-bottom: 1.25rem;">
+                        <div>
+                            <label class="form-label">Género</label>
+                            <select name="nuevo_genero" id="nuevo_genero" class="form-input">
+                                <option value="">Seleccione género...</option>
+                                <option value="Masculino" {{ old('nuevo_genero') === 'Masculino' ? 'selected' : '' }}>Masculino</option>
+                                <option value="Femenino" {{ old('nuevo_genero') === 'Femenino' ? 'selected' : '' }}>Femenino</option>
+                                <option value="Otro" {{ old('nuevo_genero') === 'Otro' ? 'selected' : '' }}>Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Grupo Sanguíneo</label>
+                            <select name="nuevo_grupo_sanguineo" id="nuevo_grupo_sanguineo" class="form-input">
+                                <option value="">Seleccione grupo...</option>
+                                <option value="O+" {{ old('nuevo_grupo_sanguineo') === 'O+' ? 'selected' : '' }}>O+</option>
+                                <option value="O-" {{ old('nuevo_grupo_sanguineo') === 'O-' ? 'selected' : '' }}>O-</option>
+                                <option value="A+" {{ old('nuevo_grupo_sanguineo') === 'A+' ? 'selected' : '' }}>A+</option>
+                                <option value="A-" {{ old('nuevo_grupo_sanguineo') === 'A-' ? 'selected' : '' }}>A-</option>
+                                <option value="B+" {{ old('nuevo_grupo_sanguineo') === 'B+' ? 'selected' : '' }}>B+</option>
+                                <option value="B-" {{ old('nuevo_grupo_sanguineo') === 'B-' ? 'selected' : '' }}>B-</option>
+                                <option value="AB+" {{ old('nuevo_grupo_sanguineo') === 'AB+' ? 'selected' : '' }}>AB+</option>
+                                <option value="AB-" {{ old('nuevo_grupo_sanguineo') === 'AB-' ? 'selected' : '' }}>AB-</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sección 2: Contacto y Residencia -->
+                    <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0 0 0.75rem 0; border-bottom: 1px solid var(--color-border); padding-bottom: 0.4rem;">
+                        2. Contacto y Residencia
+                    </h5>
+
                     <div class="grid-2" style="margin-bottom: 0.75rem;">
                         <div>
-                            <label class="form-label">Teléfono de Contacto *</label>
-                            <input type="text" name="nuevo_telefono" id="nuevo_telefono" class="form-input" placeholder="Ej. 78012345" value="{{ old('nuevo_telefono') }}">
+                            <label class="form-label">Teléfono / Celular *</label>
+                            <input type="text" name="nuevo_telefono" id="nuevo_telefono" class="form-input" placeholder="Ej. 77012345" value="{{ old('nuevo_telefono') }}">
                         </div>
                         <div>
                             <label class="form-label">Correo Electrónico *</label>
                             <input type="email" name="nuevo_email" id="nuevo_email" class="form-input" placeholder="paciente@correo.com" value="{{ old('nuevo_email') }}">
+                            <small style="color: var(--color-text-muted); font-size: 0.75rem;">Se creará automáticamente la cuenta con su CI como contraseña inicial.</small>
                         </div>
                     </div>
-                    <small style="color: var(--color-text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
-                        Se creará automáticamente la cuenta de usuario del paciente con su correo y su CI como contraseña inicial.
-                    </small>
+
+                    <div style="margin-bottom: 0.75rem;">
+                        <label class="form-label">Dirección Domiciliaria</label>
+                        <input type="text" name="nuevo_direccion" id="nuevo_direccion" class="form-input" placeholder="Av. San Martín #450, Barrio Equipetrol" value="{{ old('nuevo_direccion') }}">
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom: 1.25rem;">
+                        <div>
+                            <label class="form-label">Contacto de Emergencia (Nombre)</label>
+                            <input type="text" name="nuevo_contacto_emergencia_nombre" id="nuevo_contacto_emergencia_nombre" class="form-input" placeholder="Ej. María Elena Salazar" value="{{ old('nuevo_contacto_emergencia_nombre') }}">
+                        </div>
+                        <div>
+                            <label class="form-label">Contacto de Emergencia (Teléfono)</label>
+                            <input type="text" name="nuevo_contacto_emergencia_telefono" id="nuevo_contacto_emergencia_telefono" class="form-input" placeholder="Ej. 77998877" value="{{ old('nuevo_contacto_emergencia_telefono') }}">
+                        </div>
+                    </div>
+
+                    <!-- Sección 3: Tutor o Responsable Legal Autorizado (CU7) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: 0.4rem; margin-bottom: 0.75rem;">
+                        <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0;">
+                            3. Responsable Autorizado / Tutor (Menores o tutelados)
+                        </h5>
+                        <label style="font-size: 0.85rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                            <input type="checkbox" name="nuevo_tiene_responsable" id="toggleNuevoResponsable" value="1" {{ old('nuevo_tiene_responsable') ? 'checked' : '' }} onchange="toggleNuevoResponsableFields()">
+                            ¿Tiene tutor legal?
+                        </label>
+                    </div>
+
+                    <div id="nuevoResponsableFields" style="display: {{ old('nuevo_tiene_responsable') ? 'block' : 'none' }}; background: white; padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 0.5rem; border: 1px solid var(--color-border);">
+                        <div class="grid-2" style="margin-bottom: 0.75rem;">
+                            <div>
+                                <label class="form-label">Cédula del Tutor / Responsable *</label>
+                                <input type="text" name="nuevo_resp_ci" id="nuevo_resp_ci" class="form-input" placeholder="Ej. 3481902" value="{{ old('nuevo_resp_ci') }}">
+                            </div>
+                            <div>
+                                <label class="form-label">Nombre Completo del Tutor *</label>
+                                <input type="text" name="nuevo_resp_nombres" id="nuevo_resp_nombres" class="form-input" placeholder="Ej. Roberto Gómez" value="{{ old('nuevo_resp_nombres') }}">
+                            </div>
+                        </div>
+
+                        <div class="grid-3" style="margin-bottom: 0.5rem;">
+                            <div>
+                                <label class="form-label">Parentesco *</label>
+                                <select name="nuevo_resp_parentesco" id="nuevo_resp_parentesco" class="form-input">
+                                    <option value="Padre" {{ old('nuevo_resp_parentesco') === 'Padre' ? 'selected' : '' }}>Padre</option>
+                                    <option value="Madre" {{ old('nuevo_resp_parentesco') === 'Madre' ? 'selected' : '' }}>Madre</option>
+                                    <option value="Tutor Legal" {{ old('nuevo_resp_parentesco') === 'Tutor Legal' ? 'selected' : '' }}>Tutor Legal</option>
+                                    <option value="Cónyuge" {{ old('nuevo_resp_parentesco') === 'Cónyuge' ? 'selected' : '' }}>Cónyuge</option>
+                                    <option value="Hijo/a" {{ old('nuevo_resp_parentesco') === 'Hijo/a' ? 'selected' : '' }}>Hijo/a</option>
+                                    <option value="Otro" {{ old('nuevo_resp_parentesco') === 'Otro' ? 'selected' : '' }}>Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Teléfono del Tutor *</label>
+                                <input type="text" name="nuevo_resp_telefono" id="nuevo_resp_telefono" class="form-input" placeholder="Ej. 70011223" value="{{ old('nuevo_resp_telefono') }}">
+                            </div>
+                            <div>
+                                <label class="form-label">Vigencia de Autorización *</label>
+                                <input type="date" name="nuevo_resp_vigencia" id="nuevo_resp_vigencia" class="form-input" value="{{ old('nuevo_resp_vigencia', now()->addYear()->toDateString()) }}" min="{{ date('Y-m-d') }}">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             @endif
 
@@ -544,6 +651,21 @@ function seleccionarSlot(id, hora, btnElem) {
     document.getElementById('slotSeleccionadoAlert').style.display = 'block';
 }
 
+function toggleNuevoResponsableFields() {
+    const chk = document.getElementById('toggleNuevoResponsable');
+    const container = document.getElementById('nuevoResponsableFields');
+    if (chk && container) {
+        container.style.display = chk.checked ? 'block' : 'none';
+        ['nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (chk.checked) el.setAttribute('required', 'required');
+                else el.removeAttribute('required');
+            }
+        });
+    }
+}
+
 function toggleTipoPaciente(tipo) {
     const seccionExistente = document.getElementById('seccionPacienteExistente');
     const seccionNuevo = document.getElementById('seccionPacienteNuevo');
@@ -562,13 +684,14 @@ function toggleTipoPaciente(tipo) {
             const el = document.getElementById(id);
             if (el) el.setAttribute('required', 'required');
         });
+        toggleNuevoResponsableFields();
     } else {
         if (seccionExistente) seccionExistente.style.display = 'block';
         if (seccionNuevo) seccionNuevo.style.display = 'none';
         if (crearNuevo) crearNuevo.value = '0';
         if (selectPac) selectPac.setAttribute('required', 'required');
 
-        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email'].forEach(id => {
+        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email', 'nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.removeAttribute('required');
         });

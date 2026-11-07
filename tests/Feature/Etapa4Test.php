@@ -468,4 +468,60 @@ class Etapa4Test extends TestCase
 
         $response->assertSessionHasErrors('email');
     }
+
+    /**
+     * CU8: Registro de nuevo paciente desde el asistente con formulario completo y asignación de rol paciente.
+     */
+    public function test_wizard_full_patient_creation_assigns_paciente_role_and_persists_all_fields(): void
+    {
+        $ci = '11223344';
+        $ciTutor = '55667788';
+
+        $response = $this->actingAs($this->recepcionista)->post(route('citas.store'), [
+            'medico_id' => $this->medico->id,
+            'slot_id' => $this->slot->id,
+            'fecha' => $this->slot->fecha->toDateString(),
+            'crear_paciente_nuevo' => 1,
+            'nuevo_ci' => $ci,
+            'nuevo_nombres' => 'Joaquín',
+            'nuevo_apellidos' => 'Banzer',
+            'nuevo_fecha_nacimiento' => '2016-09-20',
+            'nuevo_genero' => 'Masculino',
+            'nuevo_grupo_sanguineo' => 'AB+',
+            'nuevo_telefono' => '76543210',
+            'nuevo_email' => 'joaquin.banzer@correo.com',
+            'nuevo_direccion' => 'Calle Los Tajibos #123',
+            'nuevo_contacto_emergencia_nombre' => 'Carmen Banzer',
+            'nuevo_contacto_emergencia_telefono' => '76543299',
+            'nuevo_tiene_responsable' => 1,
+            'nuevo_resp_ci' => $ciTutor,
+            'nuevo_resp_nombres' => 'Carmen Banzer (Madre)',
+            'nuevo_resp_parentesco' => 'Madre',
+            'nuevo_resp_telefono' => '76543299',
+            'nuevo_resp_vigencia' => now()->addMonths(6)->toDateString(),
+        ]);
+
+        $response->assertRedirect();
+
+        $paciente = Paciente::where('ci', $ci)->first();
+        $this->assertNotNull($paciente);
+        $this->assertEquals('AB+', $paciente->grupo_sanguineo);
+        $this->assertEquals('Calle Los Tajibos #123', $paciente->direccion);
+
+        // Verificar que el paciente tiene cuenta de usuario con rol PACIENTE y contraseña CI
+        $this->assertNotNull($paciente->user_id);
+        $this->assertTrue($paciente->user->isPaciente());
+        $this->assertTrue($paciente->user->debe_cambiar_password);
+
+        // Verificar que el tutor también tiene cuenta creada con rol PACIENTE
+        $tutorUser = User::where('ci', $ciTutor)->first();
+        $this->assertNotNull($tutorUser);
+        $this->assertTrue($tutorUser->isPaciente());
+
+        // Verificar cita creada
+        $this->assertDatabaseHas('citas', [
+            'paciente_id' => $paciente->id,
+            'slot_id' => $this->slot->id,
+        ]);
+    }
 }

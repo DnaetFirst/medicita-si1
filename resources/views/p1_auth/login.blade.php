@@ -146,10 +146,7 @@
         </div>
 
         <div class="form-group">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.375rem;">
-                <label class="form-label" for="password" style="margin-bottom: 0;">Contraseña</label>
-                <span style="font-size: 0.75rem; color: var(--color-text-muted);">Mínimo 8 caracteres</span>
-            </div>
+            <label class="form-label" for="password">Contraseña</label>
             <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
         </div>
 

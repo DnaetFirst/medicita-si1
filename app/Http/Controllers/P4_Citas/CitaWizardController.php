@@ -10,6 +10,7 @@ use App\Models\P2\Slot;
 use App\Models\P3\Derivacion;
 use App\Models\P3\HistoriaClinica;
 use App\Models\P3\Paciente;
+use App\Models\P3\ResponsableAutorizado;
 use App\Models\P4\Cita;
 use App\Models\User;
 use App\Services\AccesoPacienteService;
@@ -116,17 +117,37 @@ class CitaWizardController extends Controller
                     'nuevo_nombres' => 'required|string|max:100',
                     'nuevo_apellidos' => 'required|string|max:100',
                     'nuevo_fecha_nacimiento' => 'required|date|before:today',
+                    'nuevo_genero' => 'nullable|string|in:Masculino,Femenino,Otro',
+                    'nuevo_grupo_sanguineo' => 'nullable|string|max:10',
                     'nuevo_telefono' => 'required|string|max:20',
                     'nuevo_email' => 'required|email|max:150|unique:users,email',
+                    'nuevo_direccion' => 'nullable|string',
+                    'nuevo_contacto_emergencia_nombre' => 'nullable|string|max:100',
+                    'nuevo_contacto_emergencia_telefono' => 'nullable|string|max:20',
+
+                    // Responsable legal opcional
+                    'nuevo_tiene_responsable' => 'nullable|boolean',
+                    'nuevo_resp_ci' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:20',
+                    'nuevo_resp_nombres' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:100',
+                    'nuevo_resp_parentesco' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:50',
+                    'nuevo_resp_telefono' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:20',
+                    'nuevo_resp_vigencia' => 'required_if:nuevo_tiene_responsable,1|nullable|date|after:today',
                 ], [
+                    'nuevo_ci.required' => 'La Cédula de Identidad del paciente es obligatoria.',
                     'nuevo_ci.unique' => 'Ya existe un paciente registrado con este número de CI.',
                     'nuevo_nombres.required' => 'El nombre del paciente es obligatorio.',
                     'nuevo_apellidos.required' => 'El apellido del paciente es obligatorio.',
                     'nuevo_fecha_nacimiento.required' => 'La fecha de nacimiento es obligatoria.',
+                    'nuevo_fecha_nacimiento.before' => 'La fecha de nacimiento debe ser anterior a hoy.',
                     'nuevo_telefono.required' => 'El teléfono de contacto es obligatorio.',
                     'nuevo_email.required' => 'El correo electrónico es obligatorio para registrar al paciente y crear su cuenta.',
                     'nuevo_email.email' => 'El formato del correo electrónico no es válido.',
                     'nuevo_email.unique' => 'Este correo electrónico ya está registrado para otro usuario.',
+                    'nuevo_resp_ci.required_if' => 'El CI del tutor legal es obligatorio cuando se marca tutor.',
+                    'nuevo_resp_nombres.required_if' => 'El nombre del tutor legal es obligatorio.',
+                    'nuevo_resp_telefono.required_if' => 'El teléfono del tutor legal es obligatorio.',
+                    'nuevo_resp_vigencia.required_if' => 'La vigencia de la autorización es obligatoria.',
+                    'nuevo_resp_vigencia.after' => 'La fecha de vigencia debe ser posterior a hoy.',
                 ]);
             } else {
                 $request->validate([
@@ -185,7 +206,7 @@ class CitaWizardController extends Controller
             } else {
                 $pacienteId = $request->integer('paciente_id');
                 if ($validatedPaciente !== null) {
-                    $rolPaciente = Rol::where('slug', 'paciente')->first();
+                    $rolPaciente = Rol::where('slug', 'paciente')->firstOrFail();
                     $emailUser = $validatedPaciente['nuevo_email'];
 
                     $usuario = User::firstOrCreate(
@@ -193,7 +214,7 @@ class CitaWizardController extends Controller
                         [
                             'name' => trim($validatedPaciente['nuevo_nombres'].' '.$validatedPaciente['nuevo_apellidos']),
                             'email' => $emailUser,
-                            'rol_id' => $rolPaciente?->id,
+                            'rol_id' => $rolPaciente->id,
                             'telefono' => $validatedPaciente['nuevo_telefono'],
                             'password' => Hash::make($validatedPaciente['nuevo_ci']),
                             'estado' => 'activo',
@@ -201,14 +222,23 @@ class CitaWizardController extends Controller
                         ]
                     );
 
+                    if ($usuario->rol_id !== $rolPaciente->id) {
+                        $usuario->update(['rol_id' => $rolPaciente->id]);
+                    }
+
                     $nuevoPac = Paciente::create([
                         'user_id' => $usuario->id,
                         'ci' => $validatedPaciente['nuevo_ci'],
                         'nombres' => $validatedPaciente['nuevo_nombres'],
                         'apellidos' => $validatedPaciente['nuevo_apellidos'],
                         'fecha_nacimiento' => $validatedPaciente['nuevo_fecha_nacimiento'],
+                        'genero' => $validatedPaciente['nuevo_genero'] ?? null,
+                        'grupo_sanguineo' => $validatedPaciente['nuevo_grupo_sanguineo'] ?? null,
                         'telefono' => $validatedPaciente['nuevo_telefono'],
-                        'email' => $validatedPaciente['nuevo_email'] ?? null,
+                        'email' => $validatedPaciente['nuevo_email'],
+                        'direccion' => $validatedPaciente['nuevo_direccion'] ?? null,
+                        'contacto_emergencia_nombre' => $validatedPaciente['nuevo_contacto_emergencia_nombre'] ?? null,
+                        'contacto_emergencia_telefono' => $validatedPaciente['nuevo_contacto_emergencia_telefono'] ?? null,
                         'activo' => true,
                     ]);
 
@@ -220,6 +250,37 @@ class CitaWizardController extends Controller
                             'fecha_apertura' => now()->toDateString(),
                         ]
                     );
+
+                    // Registrar tutor o responsable legal si fue marcado
+                    if (! empty($validatedPaciente['nuevo_tiene_responsable']) && ! empty($validatedPaciente['nuevo_resp_nombres'])) {
+                        $tutorUser = User::where('ci', $validatedPaciente['nuevo_resp_ci'])->first();
+                        if (! $tutorUser) {
+                            $tutorUser = User::create([
+                                'name' => $validatedPaciente['nuevo_resp_nombres'],
+                                'ci' => $validatedPaciente['nuevo_resp_ci'],
+                                'email' => 'tutor.'.$validatedPaciente['nuevo_resp_ci'].'@medicita.local',
+                                'password' => Hash::make($validatedPaciente['nuevo_resp_ci']),
+                                'rol_id' => $rolPaciente->id,
+                                'telefono' => $validatedPaciente['nuevo_resp_telefono'],
+                                'estado' => 'activo',
+                                'debe_cambiar_password' => true,
+                            ]);
+                        }
+
+                        ResponsableAutorizado::create([
+                            'paciente_id' => $nuevoPac->id,
+                            'user_id' => $tutorUser->id,
+                            'ci' => $validatedPaciente['nuevo_resp_ci'],
+                            'nombres' => $validatedPaciente['nuevo_resp_nombres'],
+                            'parentesco' => $validatedPaciente['nuevo_resp_parentesco'] ?? 'Tutor Legal',
+                            'telefono' => $validatedPaciente['nuevo_resp_telefono'],
+                            'vigencia_inicio' => today(),
+                            'fecha_limite_vigencia' => $validatedPaciente['nuevo_resp_vigencia'] ?? now()->addYear()->toDateString(),
+                            'puede_gestionar_citas' => true,
+                            'puede_ver_resultados' => true,
+                            'activo' => true,
+                        ]);
+                    }
 
                     $pacienteId = $nuevoPac->id;
                 }
