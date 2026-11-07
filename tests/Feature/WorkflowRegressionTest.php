@@ -192,7 +192,7 @@ class WorkflowRegressionTest extends TestCase
         $generator = app(SlotGeneratorService::class);
         $generator->generarSlotsParaFecha($this->medico, '2026-11-02');
         $this->appointment();
-        $this->put(route('horarios.update', $this->medico), ['dias' => [1 => ['activo' => 1, 'hora_inicio' => '10:00', 'hora_fin' => '14:00', 'descanso_inicio' => '11:00']]])->assertSessionHasNoErrors();
+        $this->put(route('horarios.update', $this->medico), ['dias' => [1 => ['activo' => 1, 'hora_inicio' => '09:00', 'hora_fin' => '14:00', 'descanso_inicio' => '11:00']]])->assertSessionHasNoErrors();
         $this->assertSame('reservado', $this->slot->fresh()->estado);
         $this->assertDatabaseHas('slots', ['fecha' => '2026-11-02 00:00:00', 'hora_inicio' => '08:00', 'estado' => 'bloqueado']);
         $this->assertDatabaseHas('slots', ['fecha' => '2026-11-02 00:00:00', 'hora_inicio' => '11:00', 'estado' => 'descanso']);

@@ -12,23 +12,34 @@
             </p>
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <a href="{{ route('medicos.show', $medico) }}" class="btn btn-secondary">
-                ← Volver a Ficha
-            </a>
-            <a href="{{ route('horarios.index') }}" class="btn btn-secondary">
-                Listado General
-            </a>
+            @if(auth()->user()->isMedico())
+                <a href="{{ route('agenda.show') }}" class="btn btn-secondary">
+                    ← Mi Agenda
+                </a>
+                <a href="{{ route('horarios.index') }}" class="btn btn-secondary">
+                    Mis Horarios
+                </a>
+            @else
+                <a href="{{ route('medicos.show', $medico) }}" class="btn btn-secondary">
+                    ← Volver a Ficha
+                </a>
+                <a href="{{ route('horarios.index') }}" class="btn btn-secondary">
+                    Listado General
+                </a>
+            @endif
         </div>
     </div>
 
     <!-- Banner Informativo de Reglas de Negocio -->
     <div class="card" style="background: #EBF8FF; border-left: 4px solid #3182CE; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
         <div style="font-weight: 700; color: #2B6CB0; margin-bottom: 0.25rem; font-size: 0.9rem;">
-            📌 Reglas Clínicas de Generación de Agenda (Ciclo 1):
+            📌 Reglas Clínicas de Generación de Agenda (CU5):
         </div>
         <ul style="font-size: 0.8125rem; color: #2D3748; margin-left: 1.25rem; line-height: 1.5;">
             <li><strong>Duración del turno:</strong> Fija en <strong>15 minutos</strong> (no configurable).</li>
-            <li><strong>Descanso obligatorio:</strong> Se bloquea automáticamente <strong>1 hora completa</strong> (4 slots de 15 min no reservables) a partir de la hora de almuerzo definida.</li>
+            <li><strong>Descanso obligatorio:</strong> Se excluye automáticamente <strong>1 hora completa</strong> (4 slots de 15 min no reservables) a partir de la hora de almuerzo.</li>
+            <li><strong>Sin superposición:</strong> Los horarios no pueden superponerse entre diferentes especialidades del mismo médico.</li>
+            <li><strong>Protección de citas:</strong> Los cambios incompatibles con citas pendientes se rechazan; no se desplazan ni cancelan citas.</li>
             <li>Al guardar los cambios, el sistema generará y actualizará los slots para los próximos 7 días automáticamente.</li>
         </ul>
     </div>
@@ -83,7 +94,7 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--color-border); padding-top: 1.25rem; margin-top: 1.5rem;">
-                <a href="{{ route('medicos.show', $medico) }}" class="btn btn-secondary">Cancelar</a>
+                <a href="{{ auth()->user()->isMedico() ? route('horarios.index') : route('medicos.show', $medico) }}" class="btn btn-secondary">Cancelar</a>
                 <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.5rem;">
                     Guardar Configuración y Generar Slots
                 </button>

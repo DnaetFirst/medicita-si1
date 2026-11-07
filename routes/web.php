@@ -96,7 +96,7 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     });
 
     // ─────────────────────────────────────────────────────────────────
-    // Módulo de Médicos, Especialidades y Agendas (CU3, CU4, CU5, CU6) — Rol: Admin / Recepcionista
+    // Módulo de Médicos, Especialidades y Agendas (CU3, CU4, CU6) — Rol: Admin / Recepcionista
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista'])->group(function () {
         // CU3: Especialidades Médicas
@@ -106,15 +106,14 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
         // CU4: Gestión de Médicos
         Route::resource('medicos', MedicoController::class)->except(['destroy']);
         Route::patch('/medicos/{medico}/toggle', [MedicoController::class, 'toggleEstado'])->name('medicos.toggle');
+    });
 
-        // CU5: Horarios de Atención y Generación de Slots
+    // CU5: Horarios de Atención y Generación de Slots — Rol: Admin / Recepcionista / Médico (MED opera solo sobre su agenda)
+    Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
         Route::get('/horarios', [HorarioController::class, 'index'])->name('horarios.index');
         Route::get('/horarios/{medico}/edit', [HorarioController::class, 'edit'])->name('horarios.edit');
         Route::put('/horarios/{medico}', [HorarioController::class, 'update'])->name('horarios.update');
         Route::post('/horarios/{medico}/generar', [HorarioController::class, 'generarSlots'])->name('horarios.generar');
-
-        // CU6: Bloqueos de Agenda y Postergaciones
-
     });
 
     // ─────────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - **P7 Notifications (CU16):** Queued emails and in-app notices (`Notificacion`) without sensitive medical text, retried via scheduler every 5 minutes.
 
 ## 3. Database Schema Summary
-- **User:** `belongsTo(Rol)`, `hasOne(Medico)`, `hasOne(Paciente)`, `hasMany(Notificacion)`, `hasMany(ReporteIa)`.
+- **User:** `belongsTo(Rol)`, `hasOne(Medico)`, `hasMany(Medico)`, `hasOne(Paciente)`, `hasMany(Notificacion)`, `hasMany(ReporteIa)`.
 - **Rol:** `hasMany(User)`.
 - **Especialidad:** `hasMany(Medico)`, `hasMany(Derivacion)`.
 - **Medico:** `belongsTo(User)`, `belongsTo(Especialidad)`, `hasMany(HorarioAtencion)`, `hasMany(Slot)`, `hasMany(BloqueoAgenda)`, `hasMany(Cita)`.
@@ -45,8 +45,8 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - **RBAC Middleware:** `CheckRole` validates slugs (`admin`, `recepcionista`, `medico`, `paciente`, `lab`).
 - **Route Prefixes & Endpoints:**
   - Administrative (`role:admin`): `/usuarios`, `/bitacora` (CSV export).
-  - Clinic Management (`role:admin,recepcionista`): `/especialidades`, `/medicos`, `/horarios`, `/pacientes`.
-  - Agendas & Blocks (`role:admin,medico`): `/bloqueos`, `/agenda`.
+  - Clinic Management (`role:admin,recepcionista`): `/especialidades`, `/medicos`, `/pacientes`.
+  - Schedules & Agendas (`role:admin,recepcionista,medico`): `/horarios`, `/bloqueos`, `/agenda`. (Physicians operate strictly on their own schedule).
   - Clinical Operations (`role:admin,recepcionista,medico`): `/citas`, `/citas/{cita}/checkin`, `/citas/{cita}/iniciar`, `/citas/{cita}/finalizar`, `/citas/{cita}/inasistencia`.
   - Patient Booking & Waitlist (`role:admin,recepcionista,paciente`): `/citas/nueva`, `POST /citas`, `/citas/{cita}`, `/citas/{cita}/reprogramar`, `/citas/{cita}/cancelar`, `/citas/{cita}/confirmar`, `/espera`, `POST /espera`, `/espera/ofertas/{oferta}`, `POST /espera/ofertas/{oferta}/aceptar`.
   - Clinical History (`AccesoPacienteService` restricted): `/historial`, `/historia/{paciente}`, `POST /historia/{paciente}/atenciones`, `POST /atenciones/{atencion}/derivaciones`.

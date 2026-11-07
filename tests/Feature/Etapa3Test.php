@@ -7,6 +7,8 @@ use App\Models\P2\Especialidad;
 use App\Models\P2\HorarioAtencion;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
+use App\Models\P3\Paciente;
+use App\Models\P4\Cita;
 use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
@@ -191,6 +193,204 @@ class Etapa3Test extends TestCase
             ->where('estado', 'descanso')
             ->exists();
         $this->assertTrue($hasDescanso);
+    }
+
+    /**
+     * CU5: El médico puede consultar y configurar su propio horario de atención.
+     */
+    public function test_doctor_can_view_own_schedule_and_edit_form(): void
+    {
+        $responseIndex = $this->actingAs($this->medico->user)->get(route('horarios.index'));
+        $responseIndex->assertStatus(200);
+        $responseIndex->assertSee($this->medico->user->name);
+
+        $responseEdit = $this->actingAs($this->medico->user)->get(route('horarios.edit', $this->medico));
+        $responseEdit->assertStatus(200);
+        $responseEdit->assertSee('Configuración de Agenda Semanal (CU5)');
+    }
+
+    /**
+     * CU5: El médico no puede acceder ni modificar los horarios de otro médico (403).
+     */
+    public function test_doctor_cannot_view_or_modify_other_doctor_schedule(): void
+    {
+        $otroMedico = Medico::factory()->create();
+
+        // 1. Intento de ver formulario de edición de otro médico
+        $responseEdit = $this->actingAs($this->medico->user)->get(route('horarios.edit', $otroMedico));
+        $responseEdit->assertStatus(403);
+
+        // 2. Intento de actualizar horarios de otro médico
+        $responseUpdate = $this->actingAs($this->medico->user)->put(route('horarios.update', $otroMedico), [
+            'dias' => [
+                1 => [
+                    'activo' => '1',
+                    'hora_inicio' => '08:00',
+                    'hora_fin' => '14:00',
+                    'descanso_inicio' => '12:00',
+                    'descanso_fin' => '13:00',
+                ],
+            ],
+        ]);
+        $responseUpdate->assertStatus(403);
+
+        // 3. Intento de generar slots para otro médico
+        $responseGenerar = $this->actingAs($this->medico->user)->post(route('horarios.generar', $otroMedico));
+        $responseGenerar->assertStatus(403);
+    }
+
+    /**
+     * CU5: El médico actualiza su propio horario y es redirigido a la edición con éxito.
+     */
+    public function test_doctor_can_update_own_schedule_and_redirects_to_edit(): void
+    {
+        $payload = [
+            'dias' => [
+                1 => [
+                    'activo' => '1',
+                    'hora_inicio' => '08:00',
+                    'hora_fin' => '13:00',
+                    'descanso_inicio' => '11:00',
+                    'descanso_fin' => '12:00',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->medico->user)->put(route('horarios.update', $this->medico), $payload);
+        $response->assertRedirect(route('horarios.edit', $this->medico));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('horarios_atencion', [
+            'medico_id' => $this->medico->id,
+            'dia_semana' => 1,
+            'hora_inicio' => '08:00',
+            'hora_fin' => '13:00',
+            'descanso_inicio' => '11:00',
+            'descanso_fin' => '12:00',
+            'activo' => true,
+        ]);
+    }
+
+    /**
+     * CU5: No se permite superposición de horarios entre distintas especialidades del mismo médico.
+     */
+    public function test_cannot_update_schedule_if_overlapping_with_another_specialty_of_same_doctor(): void
+    {
+        $esp2 = Especialidad::where('id', '!=', $this->medico->especialidad_id)->first();
+
+        // Crear segunda especialidad para el mismo médico (mismo user_id)
+        $segundoMedico = Medico::create([
+            'user_id' => $this->medico->user_id,
+            'especialidad_id' => $esp2->id,
+            'nro_registro_medico' => 'COL-MED-CARDIO-99',
+            'estado' => 'activo',
+        ]);
+
+        // La segunda especialidad atiende los lunes de 13:00 a 17:00
+        HorarioAtencion::create([
+            'medico_id' => $segundoMedico->id,
+            'dia_semana' => 1,
+            'hora_inicio' => '13:00',
+            'hora_fin' => '17:00',
+            'descanso_inicio' => '15:00',
+            'descanso_fin' => '16:00',
+            'duracion_slot_minutos' => 15,
+            'activo' => true,
+        ]);
+
+        // Intentar actualizar la primera especialidad para los lunes de 08:00 a 14:00 (se superpone de 13:00 a 14:00)
+        $payload = [
+            'dias' => [
+                1 => [
+                    'activo' => '1',
+                    'hora_inicio' => '08:00',
+                    'hora_fin' => '14:00',
+                    'descanso_inicio' => '11:00',
+                    'descanso_fin' => '12:00',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->medico->user)->put(route('horarios.update', $this->medico), $payload);
+        $response->assertSessionHasErrors('dias.1.hora_inicio');
+    }
+
+    /**
+     * CU5: Cambios incompatibles con citas pendientes se rechazan; no se desplazan citas.
+     */
+    public function test_cannot_update_schedule_if_incompatible_with_pending_appointments(): void
+    {
+        $paciente = Paciente::first();
+        $proximoLunes = now()->next(Carbon::MONDAY)->toDateString();
+
+        // Slot para el próximo lunes a las 09:00
+        $slot = Slot::create([
+            'medico_id' => $this->medico->id,
+            'fecha' => $proximoLunes,
+            'hora_inicio' => '09:00',
+            'hora_fin' => '09:15',
+            'estado' => 'reservado',
+        ]);
+
+        // Cita pendiente programada
+        $cita = Cita::create([
+            'codigo_ficha' => 'FCH-TEST-COMPAT',
+            'paciente_id' => $paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $slot->id,
+            'fecha' => $proximoLunes,
+            'hora' => '09:00',
+            'estado' => 'programada',
+            'motivo_consulta' => 'Control de compatibilidad de agenda',
+        ]);
+
+        // Caso 1: Intentar desactivar el lunes teniendo cita pendiente
+        $payloadDesactivar = [
+            'dias' => [
+                1 => [
+                    'activo' => '0',
+                    'hora_inicio' => '08:00',
+                    'hora_fin' => '14:00',
+                    'descanso_inicio' => '12:00',
+                ],
+            ],
+        ];
+        $response1 = $this->actingAs($this->medico->user)->put(route('horarios.update', $this->medico), $payloadDesactivar);
+        $response1->assertSessionHasErrors('dias.1.activo');
+
+        // Caso 2: Intentar cambiar hora de inicio a las 10:00 (dejando la cita de las 09:00 fuera de la jornada)
+        $payloadRango = [
+            'dias' => [
+                1 => [
+                    'activo' => '1',
+                    'hora_inicio' => '10:00',
+                    'hora_fin' => '16:00',
+                    'descanso_inicio' => '13:00',
+                ],
+            ],
+        ];
+        $response2 = $this->actingAs($this->medico->user)->put(route('horarios.update', $this->medico), $payloadRango);
+        $response2->assertSessionHasErrors('dias.1.hora_inicio');
+
+        // Caso 3: Intentar colocar el descanso entre las 09:00 y las 10:00 (colisionando con la cita)
+        $payloadDescanso = [
+            'dias' => [
+                1 => [
+                    'activo' => '1',
+                    'hora_inicio' => '08:00',
+                    'hora_fin' => '16:00',
+                    'descanso_inicio' => '09:00',
+                ],
+            ],
+        ];
+        $response3 = $this->actingAs($this->medico->user)->put(route('horarios.update', $this->medico), $payloadDescanso);
+        $response3->assertSessionHasErrors('dias.1.descanso_inicio');
+
+        // Verificar que la cita NO fue desplazada, alterada ni cancelada
+        $cita->refresh();
+        $this->assertEquals('programada', $cita->estado);
+        $this->assertEquals('09:00', substr($cita->hora, 0, 5));
+        $this->assertEquals($slot->id, $cita->slot_id);
     }
 
     /**

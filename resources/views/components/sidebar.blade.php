@@ -73,6 +73,10 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
             Agenda Médica (CU12)
         </a>
+        <a href="/horarios" class="nav-item {{ str_starts_with($currentRoute, 'horarios') ? 'active' : '' }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            {{ auth()->user()->isMedico() ? 'Mis Horarios & Slots (CU5)' : 'Horarios & Slots (CU5)' }}
+        </a>
         @if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista())
         <a href="/medicos" class="nav-item {{ str_starts_with($currentRoute, 'medicos') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -82,15 +86,10 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
             Especialidades (CU3)
         </a>
-        <a href="/horarios" class="nav-item {{ str_starts_with($currentRoute, 'horarios') ? 'active' : '' }}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Horarios & Slots (CU5)
-        </a>
         <a href="/bloqueos" class="nav-item {{ str_starts_with($currentRoute, 'bloqueos') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"/></svg>
             Bloqueos de Agenda (CU6)
         </a>
-
         @endif
         <div class="nav-section-title">P3 · Pacientes</div>
         <a href="{{ auth()->user()->isMedico() ? route('historial.index') : route('pacientes.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'pacientes') ? 'active' : '' }}">
