@@ -34,6 +34,8 @@ class Etapa2Test extends TestCase
         $response->assertSee('MediCita Pro');
         $response->assertSee('Iniciar Sesión');
         $response->assertSee('admin@medicita.com');
+        $response->assertSee('Responsable de Laboratorio');
+        $response->assertSee('lab@medicita.com');
     }
 
     /**

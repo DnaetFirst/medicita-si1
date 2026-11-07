@@ -179,6 +179,9 @@
             <button type="button" class="demo-pill" onclick="fillCreds('dr.perez@medicita.com', 'Medico123!')">
                 🩺 Médico
             </button>
+            <button type="button" class="demo-pill" onclick="fillCreds('lab@medicita.com', 'Lab123!')">
+                🧪 Responsable de Laboratorio
+            </button>
             <button type="button" class="demo-pill" onclick="fillCreds('paciente.demo@medicita.com', 'Paciente123!')">
                 👤 Paciente
             </button>

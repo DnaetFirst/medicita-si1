@@ -1,17 +1,14 @@
-﻿# HANDOFF — Responsable de Laboratorio Role Alignment & CU14 Clarifications
+# HANDOFF — Responsable de Laboratorio Demo Pill on Login
 
 ## Completed
-- Updated role name in `RolSeeder.php` and database:
-  - Renamed from `Laboratorio` to `Responsable de Laboratorio` (slug `lab`) to align with university specification documentation.
-- Documented and clarified clinical workflows:
-  - Inter-specialty Derivations (`Derivacion`) and their automatic linking during appointment booking.
-  - Laboratory Order Emission (`OrdenLaboratorio`) and result publication workflow.
-  - Role mapping and permissions for `Responsable de Laboratorio`.
-- All 190 tests passing (927 assertions).
+- Added `🧪 Responsable de Laboratorio` quick-fill button (`lab@medicita.com` / `Lab123!`) to login page demo credentials in `resources/views/p1_auth/login.blade.php`.
+- Updated test in `tests/Feature/Etapa2Test.php` to verify presence of `Responsable de Laboratorio` demo pill.
+- Total test suite: 190/190 passing (929 assertions).
 
 ## Modified Files
-- `database/seeders/RolSeeder.php`
+- `resources/views/p1_auth/login.blade.php`
+- `tests/Feature/Etapa2Test.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Ready for user review.
+- Ready for user review and live demo.
