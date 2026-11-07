@@ -1,21 +1,20 @@
-# HANDOFF — Fix Notification When Registering Patients with Legal Tutor
+# HANDOFF — Allow Non-Patient Tutors to Register as Patients
 
 ## Completed
-- Updated patient registration notification in `PacienteController@store`:
-  - When `tiene_responsable` is active, displays tutor's portal account details (`resp_email`, `resp_ci`, and initial password as `resp_ci`).
-  - Omits the minor's password credential notice when a legal guardian manages the account.
-  - Retains standard patient account notification only when no guardian is registered.
-- Updated `PacienteController@storeResponsable`:
-  - Displays tutor's portal credentials if a new tutor user account was created.
-- Updated `UsuarioController@storePaciente` flash notification.
-- Updated modal hint in `p3_pacientes.pacientes.show`.
-- Added test assertions in `tests/Feature/Etapa4Test.php`.
-- Ran Pint and running full test suite.
+- Allowed tutors without patient records to register as patients reusing their user account:
+  - `PacienteController@store`: Added `$tutorSinFichaId` check so tutors with existing CI and email can register as patients without uniqueness errors.
+  - `UsuarioController@storePaciente`: Reuses existing user if registering a tutor as a patient.
+  - `CitaWizardController@store`: Reuses existing tutor user in wizard inline patient creation.
+  - `Paciente`: Added `historiaClinica(): HasOne` relationship.
+- Added feature test in `tests/Feature/Etapa4Test.php`:
+  - `test_tutor_without_patient_record_can_register_as_patient_with_same_ci_and_email`
+- Formatted with Pint and running full test suite.
 
 ## Modified Files
 - `app/Http/Controllers/P3_Pacientes/PacienteController.php`
 - `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
-- `resources/views/p3_pacientes/pacientes/show.blade.php`
+- `app/Http/Controllers/P4_Citas/CitaWizardController.php`
+- `app/Models/P3/Paciente.php`
 - `tests/Feature/Etapa4Test.php`
 - `HANDOFF.md`
 

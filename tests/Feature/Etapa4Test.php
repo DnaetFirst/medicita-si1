@@ -703,4 +703,66 @@ class Etapa4Test extends TestCase
         $this->assertStringContainsString('Contraseña inicial del tutor: <strong>'.$ciTutor.'</strong>', $sessionHtml);
         $this->assertStringNotContainsString('registrado con cuenta vinculada de acceso al portal', $sessionHtml);
     }
+
+    /**
+     * CU7: Un tutor que no era paciente puede registrarse posteriormente como paciente
+     * reutilizando su cuenta de usuario sin conflictos de unicidad.
+     */
+    public function test_tutor_without_patient_record_can_register_as_patient_with_same_ci_and_email(): void
+    {
+        $ciTutor = '6655443';
+        $emailTutor = 'tutor.independiente@medicita.com';
+
+        // 1. Primero se registra un paciente menor con este tutor
+        $payloadHijo = [
+            'ci' => '11223344',
+            'nombres' => 'Hijo Menor',
+            'apellidos' => 'Gómez',
+            'fecha_nacimiento' => '2018-03-15',
+            'telefono' => '71122336',
+            'email' => 'hijo.menor@medicita.com',
+            'tiene_responsable' => '1',
+            'resp_ci' => $ciTutor,
+            'resp_nombres' => 'Carlos Gómez',
+            'resp_email' => $emailTutor,
+            'resp_parentesco' => 'Padre',
+            'resp_telefono' => '71122337',
+            'resp_vigencia' => now()->addYear()->toDateString(),
+        ];
+
+        $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $payloadHijo)->assertRedirect();
+
+        // Verificar que el tutor existe como usuario pero NO como paciente
+        $userTutor = User::where('ci', $ciTutor)->first();
+        $this->assertNotNull($userTutor);
+        $this->assertNull(Paciente::where('user_id', $userTutor->id)->first());
+
+        // 2. Ahora el tutor acude a registrarse a sí mismo como paciente con su mismo CI y correo
+        $payloadTutorComoPaciente = [
+            'ci' => $ciTutor,
+            'nombres' => 'Carlos',
+            'apellidos' => 'Gómez',
+            'fecha_nacimiento' => '1985-07-20',
+            'genero' => 'Masculino',
+            'grupo_sanguineo' => 'O+',
+            'telefono' => '71122337',
+            'email' => $emailTutor,
+            'direccion' => 'Calle Los Álamos #123',
+        ];
+
+        $response = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $payloadTutorComoPaciente);
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        // 3. Verificar que se creó su ficha clínica de paciente vinculada a su cuenta existente
+        $pacienteTutor = Paciente::where('ci', $ciTutor)->first();
+        $this->assertNotNull($pacienteTutor);
+        $this->assertEquals($userTutor->id, $pacienteTutor->user_id);
+        $this->assertEquals('Carlos Gómez', $pacienteTutor->nombre_completo);
+        $this->assertNotNull($pacienteTutor->historiaClinica);
+
+        // 4. Verificar que sigue siendo tutor de su hijo en la misma cuenta
+        $hijo = Paciente::where('ci', '11223344')->first();
+        $this->assertTrue(ResponsableAutorizado::where('user_id', $userTutor->id)->where('paciente_id', $hijo->id)->exists());
+    }
 }

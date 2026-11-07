@@ -124,15 +124,48 @@ class UsuarioController extends Controller
      */
     protected function storePaciente(Request $request, Rol $rol): RedirectResponse
     {
+        $ciInput = $request->input('ci');
+        $usuarioExistente = User::where('ci', $ciInput)->first();
+        if (! $usuarioExistente && $request->filled('email')) {
+            $usuarioExistente = User::where('email', $request->input('email'))->first();
+        }
+
+        // Si el usuario existe pero no tiene ficha clínica de paciente (ej. registrado como tutor),
+        // permitimos reutilizar su cuenta para habilitarle su ficha de paciente.
+        $tutorSinFichaId = null;
+        if ($usuarioExistente && ! $usuarioExistente->paciente()->exists() && ! Paciente::where('ci', $ciInput)->exists()) {
+            $tutorSinFichaId = $usuarioExistente->id;
+        }
+
         $validated = $request->validate([
-            'ci' => 'required|string|max:20|unique:users,ci|unique:pacientes,ci',
+            'ci' => [
+                'required',
+                'string',
+                'max:20',
+                'unique:pacientes,ci',
+                Rule::unique('users', 'ci')->ignore($tutorSinFichaId),
+            ],
             'nombres' => 'required|string|max:100',
             'apellidos' => 'required|string|max:100',
             'fecha_nacimiento' => 'required|date|before:today',
             'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
             'grupo_sanguineo' => 'nullable|string|max:10',
             'telefono' => 'required|string|max:20',
-            'email' => 'required|email|max:150|unique:users,email',
+            'email' => [
+                'required',
+                'email',
+                'max:150',
+                Rule::unique('users', 'email')->ignore($tutorSinFichaId),
+                function ($attribute, $value, $fail) use ($ciInput, $tutorSinFichaId) {
+                    $userConEmail = User::where('email', $value)->first();
+                    if ($userConEmail && $userConEmail->id !== $tutorSinFichaId) {
+                        $fail('Este correo electrónico ya se encuentra registrado.');
+                    }
+                    if ($tutorSinFichaId && $userConEmail && $userConEmail->ci !== $ciInput) {
+                        $fail('El correo ingresado pertenece a un usuario con otro número de CI.');
+                    }
+                },
+            ],
             'direccion' => 'nullable|string',
             'contacto_emergencia_nombre' => 'nullable|string|max:100',
             'contacto_emergencia_telefono' => 'nullable|string|max:20',
@@ -166,17 +199,31 @@ class UsuarioController extends Controller
         $password = ! empty($validated['password']) ? $validated['password'] : $validated['ci'];
         $debeCambiar = empty($validated['password']);
 
-        [$user, $paciente] = DB::transaction(function () use ($validated, $nombreCompleto, $password, $debeCambiar, $rol) {
-            $user = User::create([
-                'name' => $nombreCompleto,
-                'ci' => $validated['ci'],
-                'email' => $validated['email'],
-                'password' => Hash::make($password),
-                'rol_id' => $rol->id,
-                'telefono' => $validated['telefono'],
-                'estado' => $validated['estado'],
-                'debe_cambiar_password' => $debeCambiar,
-            ]);
+        [$user, $paciente] = DB::transaction(function () use ($validated, $nombreCompleto, $password, $debeCambiar, $rol, $tutorSinFichaId) {
+            if ($tutorSinFichaId) {
+                $user = User::findOrFail($tutorSinFichaId);
+                $datosActualizar = [
+                    'name' => $nombreCompleto,
+                    'telefono' => $validated['telefono'],
+                    'estado' => $validated['estado'],
+                ];
+                if (! empty($validated['password'])) {
+                    $datosActualizar['password'] = Hash::make($password);
+                    $datosActualizar['debe_cambiar_password'] = false;
+                }
+                $user->update($datosActualizar);
+            } else {
+                $user = User::create([
+                    'name' => $nombreCompleto,
+                    'ci' => $validated['ci'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($password),
+                    'rol_id' => $rol->id,
+                    'telefono' => $validated['telefono'],
+                    'estado' => $validated['estado'],
+                    'debe_cambiar_password' => $debeCambiar,
+                ]);
+            }
 
             $paciente = Paciente::create([
                 'user_id' => $user->id,
@@ -251,9 +298,13 @@ class UsuarioController extends Controller
         });
 
         $tieneTutor = ! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres']);
-        $msg = $tieneTutor
-            ? "Paciente '{$paciente->nombre_completo}' registrado exitosamente con tutor legal autorizado ({$validated['resp_nombres']}). Acceso al portal asignado al tutor con su CI como contraseña inicial."
-            : "Usuario Paciente '{$user->name}' registrado exitosamente con su Ficha Clínica Digital (CU7).";
+        if ($tutorSinFichaId) {
+            $msg = "Usuario '{$user->name}' (registrado previamente como tutor) acreditado exitosamente con su nueva Ficha Clínica de Paciente (CU7). Ahora gestiona su perfil y sus tutelados en la misma cuenta.";
+        } elseif ($tieneTutor) {
+            $msg = "Paciente '{$paciente->nombre_completo}' registrado exitosamente con tutor legal autorizado ({$validated['resp_nombres']}). Acceso al portal asignado al tutor con su CI como contraseña inicial.";
+        } else {
+            $msg = "Usuario Paciente '{$user->name}' registrado exitosamente con su Ficha Clínica Digital (CU7).";
+        }
 
         return redirect()->route('usuarios.index')
             ->with('success', $msg);

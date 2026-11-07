@@ -76,15 +76,52 @@ class PacienteController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $ciInput = $request->input('ci');
+        $usuarioExistente = User::where('ci', $ciInput)->first();
+        if (! $usuarioExistente && $request->filled('email')) {
+            $usuarioExistente = User::where('email', $request->input('email'))->first();
+        }
+
+        // Si el usuario existe pero NO tiene ficha de paciente (ej. registrado previamente como tutor legal),
+        // permitimos reutilizar su cuenta de usuario para registrarlo como paciente.
+        $tutorSinFichaId = null;
+        if ($usuarioExistente && ! $usuarioExistente->paciente()->exists() && ! Paciente::where('ci', $ciInput)->exists()) {
+            $tutorSinFichaId = $usuarioExistente->id;
+        }
+
         $validated = $request->validate([
-            'ci' => 'required|string|max:20|unique:pacientes,ci',
+            'ci' => [
+                'required',
+                'string',
+                'max:20',
+                'unique:pacientes,ci',
+                function ($attribute, $value, $fail) use ($usuarioExistente, $tutorSinFichaId) {
+                    if ($usuarioExistente && ! $tutorSinFichaId && $usuarioExistente->paciente()->exists()) {
+                        $fail('Ya existe un paciente registrado con este número de CI.');
+                    }
+                },
+            ],
             'nombres' => 'required|string|max:100',
             'apellidos' => 'required|string|max:100',
             'fecha_nacimiento' => 'required|date|before:today',
             'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
             'grupo_sanguineo' => 'nullable|string|max:10',
             'telefono' => 'required|string|max:20',
-            'email' => 'required|email|max:150|unique:users,email',
+            'email' => [
+                'required',
+                'email',
+                'max:150',
+                Rule::unique('users', 'email')->ignore($tutorSinFichaId),
+                function ($attribute, $value, $fail) use ($ciInput, $tutorSinFichaId) {
+                    $userConEmail = User::where('email', $value)->first();
+                    if ($userConEmail && $userConEmail->id !== $tutorSinFichaId) {
+                        $fail('Este correo electrónico ya está registrado para otro usuario del sistema.');
+                    }
+                    if ($tutorSinFichaId && $userConEmail && $userConEmail->ci !== $ciInput) {
+                        $fail('El correo ingresado pertenece a un usuario con otro número de CI.');
+                    }
+                },
+            ],
             'direccion' => 'nullable|string',
             'contacto_emergencia_nombre' => 'nullable|string|max:100',
             'contacto_emergencia_telefono' => 'nullable|string|max:20',
@@ -121,9 +158,9 @@ class PacienteController extends Controller
         $passwordInicial = $validated['ci'];
         $emailAcceso = $validated['email'];
 
-        [$paciente, $usuario] = DB::transaction(function () use ($validated, $emailAcceso, $passwordInicial, $rolPaciente) {
+        [$paciente, $usuario] = DB::transaction(function () use ($validated, $emailAcceso, $passwordInicial, $rolPaciente, $tutorSinFichaId) {
             // 1. Crear o recuperar cuenta de acceso PAC con CI como contraseña inicial
-            $usuario = User::where('ci', $validated['ci'])->orWhere('email', $emailAcceso)->first();
+            $usuario = $tutorSinFichaId ? User::find($tutorSinFichaId) : User::where('ci', $validated['ci'])->orWhere('email', $emailAcceso)->first();
             if (! $usuario) {
                 $usuario = User::create([
                     'name' => trim($validated['nombres'].' '.$validated['apellidos']),
@@ -137,7 +174,9 @@ class PacienteController extends Controller
                 ]);
             } else {
                 $usuario->update([
+                    'name' => trim($validated['nombres'].' '.$validated['apellidos']),
                     'rol_id' => $rolPaciente?->id ?? $usuario->rol_id,
+                    'telefono' => $validated['telefono'],
                     'estado' => 'activo',
                 ]);
             }
@@ -213,7 +252,10 @@ class PacienteController extends Controller
 
         $tieneTutor = ! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres']);
 
-        if ($tieneTutor) {
+        if ($tutorSinFichaId) {
+            $mensajePassword = "Paciente <strong>{$paciente->nombre_completo}</strong> registrado exitosamente, vinculado a su cuenta de acceso existente (<strong>{$usuario->email}</strong>).<br>"
+                .'Ahora puede gestionar sus propias consultas y las de sus tutelados desde el mismo portal.';
+        } elseif ($tieneTutor) {
             $mensajePassword = "Paciente <strong>{$paciente->nombre_completo}</strong> registrado exitosamente con tutor legal autorizado (<strong>{$validated['resp_nombres']}</strong>).<br>"
                 ."Cuenta de acceso al portal asignada al tutor: <strong>{$validated['resp_email']}</strong> (o carnet: <strong>{$validated['resp_ci']}</strong>)<br>"
                 ."Contraseña inicial del tutor: <strong>{$validated['resp_ci']}</strong> (número de CI del tutor, se solicitará cambio por seguridad en el primer inicio de sesión).";

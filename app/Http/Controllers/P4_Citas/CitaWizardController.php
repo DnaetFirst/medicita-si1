@@ -112,6 +112,7 @@ class CitaWizardController extends Controller
     public function store(Request $request, SlotGeneratorService $slotGenerator): RedirectResponse
     {
         $validatedPaciente = null;
+        $tutorSinFichaId = null;
 
         // 1. Si el usuario es paciente autenticado, se asocia directamente
         if ($request->user()->isPaciente()) {
@@ -122,15 +123,46 @@ class CitaWizardController extends Controller
         } else {
             // Si es personal de recepción/admin y solicita registro de un nuevo paciente inline
             if ($request->boolean('crear_paciente_nuevo')) {
+                $ciInput = $request->input('nuevo_ci');
+                $usuarioExistente = User::where('ci', $ciInput)->first();
+                if (! $usuarioExistente && $request->filled('nuevo_email')) {
+                    $usuarioExistente = User::where('email', $request->input('nuevo_email'))->first();
+                }
+
+                $tutorSinFichaId = null;
+                if ($usuarioExistente && ! $usuarioExistente->paciente()->exists() && ! Paciente::where('ci', $ciInput)->exists()) {
+                    $tutorSinFichaId = $usuarioExistente->id;
+                }
+
                 $validatedPaciente = $request->validate([
-                    'nuevo_ci' => 'required|string|max:20|unique:pacientes,ci',
+                    'nuevo_ci' => [
+                        'required',
+                        'string',
+                        'max:20',
+                        'unique:pacientes,ci',
+                        Rule::unique('users', 'ci')->ignore($tutorSinFichaId),
+                    ],
                     'nuevo_nombres' => 'required|string|max:100',
                     'nuevo_apellidos' => 'required|string|max:100',
                     'nuevo_fecha_nacimiento' => 'required|date|before:today',
                     'nuevo_genero' => 'nullable|string|in:Masculino,Femenino,Otro',
                     'nuevo_grupo_sanguineo' => 'nullable|string|max:10',
                     'nuevo_telefono' => 'required|string|max:20',
-                    'nuevo_email' => 'required|email|max:150|unique:users,email',
+                    'nuevo_email' => [
+                        'required',
+                        'email',
+                        'max:150',
+                        Rule::unique('users', 'email')->ignore($tutorSinFichaId),
+                        function ($attribute, $value, $fail) use ($ciInput, $tutorSinFichaId) {
+                            $userConEmail = User::where('email', $value)->first();
+                            if ($userConEmail && $userConEmail->id !== $tutorSinFichaId) {
+                                $fail('Este correo electrónico ya está registrado para otro usuario.');
+                            }
+                            if ($tutorSinFichaId && $userConEmail && $userConEmail->ci !== $ciInput) {
+                                $fail('El correo ingresado pertenece a un usuario con otro número de CI.');
+                            }
+                        },
+                    ],
                     'nuevo_direccion' => 'nullable|string',
                     'nuevo_contacto_emergencia_nombre' => 'nullable|string|max:100',
                     'nuevo_contacto_emergencia_telefono' => 'nullable|string|max:20',
@@ -183,7 +215,7 @@ class CitaWizardController extends Controller
             'slot_id.required' => 'Debes seleccionar un turno de 15 minutos disponible.',
         ]);
 
-        $cita = DB::transaction(function () use ($request, $validatedPaciente) {
+        $cita = DB::transaction(function () use ($request, $validatedPaciente, $tutorSinFichaId) {
             $medico = Medico::whereKey($request->integer('medico_id'))->lockForUpdate()->firstOrFail();
             if ($request->filled('operacion_id')) {
                 $previa = Cita::where('operacion_id', $request->operacion_id)->first();
@@ -222,21 +254,25 @@ class CitaWizardController extends Controller
                     $rolPaciente = Rol::where('slug', 'paciente')->firstOrFail();
                     $emailUser = $validatedPaciente['nuevo_email'];
 
-                    $usuario = User::firstOrCreate(
-                        ['ci' => $validatedPaciente['nuevo_ci']],
-                        [
+                    $usuario = $tutorSinFichaId ? User::find($tutorSinFichaId) : User::where('ci', $validatedPaciente['nuevo_ci'])->first();
+                    if (! $usuario) {
+                        $usuario = User::create([
                             'name' => trim($validatedPaciente['nuevo_nombres'].' '.$validatedPaciente['nuevo_apellidos']),
+                            'ci' => $validatedPaciente['nuevo_ci'],
                             'email' => $emailUser,
                             'rol_id' => $rolPaciente->id,
                             'telefono' => $validatedPaciente['nuevo_telefono'],
                             'password' => Hash::make($validatedPaciente['nuevo_ci']),
                             'estado' => 'activo',
                             'debe_cambiar_password' => true,
-                        ]
-                    );
-
-                    if ($usuario->rol_id !== $rolPaciente->id) {
-                        $usuario->update(['rol_id' => $rolPaciente->id]);
+                        ]);
+                    } else {
+                        $usuario->update([
+                            'name' => trim($validatedPaciente['nuevo_nombres'].' '.$validatedPaciente['nuevo_apellidos']),
+                            'rol_id' => $rolPaciente->id,
+                            'telefono' => $validatedPaciente['nuevo_telefono'],
+                            'estado' => 'activo',
+                        ]);
                     }
 
                     $nuevoPac = Paciente::create([

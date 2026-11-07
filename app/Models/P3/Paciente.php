@@ -54,6 +54,11 @@ class Paciente extends Model
             ->where('fecha_limite_vigencia', '>=', now()->toDateString());
     }
 
+    public function historiaClinica(): HasOne
+    {
+        return $this->hasOne(HistoriaClinica::class, 'paciente_id');
+    }
+
     public function citas(): HasMany
     {
         return $this->hasMany(Cita::class, 'paciente_id');
