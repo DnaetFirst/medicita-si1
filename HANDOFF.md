@@ -1,17 +1,17 @@
-﻿# HANDOFF — Production Brevo Verification
+﻿# HANDOFF — Responsable de Laboratorio Role Alignment & CU14 Clarifications
 
 ## Completed
-- Commit 6303292 deployed; user saved Brevo variables and deployed dep-dbr6jagu01pc73abbb50 (live).
-- Real password recovery POST to choque0cabana@gmail.com returned delivery error; password unchanged.
-- Added safe Brevo diagnostics: missing API key, connection failure, HTTP status and constrained provider error code. No secrets or message bodies logged.
-- Validation: EnvioCorreoTest passed (10 tests, 24 assertions); Pint passed.
+- Updated role name in `RolSeeder.php` and database:
+  - Renamed from `Laboratorio` to `Responsable de Laboratorio` (slug `lab`) to align with university specification documentation.
+- Documented and clarified clinical workflows:
+  - Inter-specialty Derivations (`Derivacion`) and their automatic linking during appointment booking.
+  - Laboratory Order Emission (`OrdenLaboratorio`) and result publication workflow.
+  - Role mapping and permissions for `Responsable de Laboratorio`.
+- All 190 tests passing (927 assertions).
 
 ## Modified Files
-- app/Mail/BrevoTransport.php
-- HANDOFF.md
+- `database/seeders/RolSeeder.php`
+- `HANDOFF.md`
 
 ## Next Step / Pending
-- Deploy diagnostics, repeat recovery request, inspect Brevo error code and resolve cloud configuration.
-- Verify actual inbox receipt with user after provider acceptance.
-- Render service srv-dbnorim7bikc73d51n5g; confirmed workspace tea-dbhnc1mc6qcc73fsbfh0.
-- User explicitly authorized push to DnaetFirst/medicita-si1 main and deployment to medicita-si1-defensa.
+- Ready for user review.
