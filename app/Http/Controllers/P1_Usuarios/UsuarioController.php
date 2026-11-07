@@ -72,7 +72,7 @@ class UsuarioController extends Controller
      */
     public function create(): View
     {
-        $roles = Rol::where('activo', true)->get();
+        $roles = Rol::where('activo', true)->where('slug', '!=', 'superadmin')->get();
         $especialidades = Especialidad::where('activo', true)->orderBy('nombre')->get();
 
         return view('p1_auth.usuarios.create', [
@@ -91,15 +91,22 @@ class UsuarioController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'rol_id' => 'required|exists:roles,id',
+            'rol_id' => [
+                'required',
+                Rule::exists('roles', 'id')->where(fn ($q) => $q->where('activo', true)->where('slug', '!=', 'superadmin')),
+            ],
             'estado' => 'required|in:activo,inactivo',
         ], [
             'rol_id.required' => 'Debes asignar un rol al usuario.',
-            'rol_id.exists' => 'El rol seleccionado no es válido.',
+            'rol_id.exists' => 'El rol seleccionado no es válido o no está permitido crear superusuarios.',
             'estado.required' => 'El estado inicial es obligatorio.',
         ]);
 
         $rol = Rol::findOrFail($request->integer('rol_id'));
+
+        if ($rol->slug === 'superadmin') {
+            abort(422, 'No está permitido crear usuarios con el rol Superusuario.');
+        }
 
         if ($rol->slug === 'paciente') {
             return $this->storePaciente($request, $rol);
@@ -370,7 +377,11 @@ class UsuarioController extends Controller
      */
     public function edit(User $usuario): View
     {
-        $roles = Rol::where('activo', true)->get();
+        $rolesQuery = Rol::where('activo', true);
+        if (! $usuario->isSuperAdmin()) {
+            $rolesQuery->where('slug', '!=', 'superadmin');
+        }
+        $roles = $rolesQuery->get();
 
         return view('p1_auth.usuarios.edit', [
             'usuario' => $usuario,
@@ -389,11 +400,20 @@ class UsuarioController extends Controller
             'name' => 'required|string|max:150',
             'ci' => ['required', 'string', 'max:20', Rule::unique('users', 'ci')->ignore($usuario->id)],
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($usuario->id)],
-            'rol_id' => 'required|exists:roles,id',
+            'rol_id' => [
+                'required',
+                Rule::exists('roles', 'id')->where(function ($query) use ($usuario) {
+                    $query->where('activo', true);
+                    if (! $usuario->isSuperAdmin()) {
+                        $query->where('slug', '!=', 'superadmin');
+                    }
+                }),
+            ],
             'telefono' => 'nullable|string|max:20',
             'password' => ['nullable', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'estado' => 'required|in:activo,inactivo',
         ], [
+            'rol_id.exists' => 'El rol seleccionado no es válido o no está permitido asignar el rol de Superusuario.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
         ]);
 

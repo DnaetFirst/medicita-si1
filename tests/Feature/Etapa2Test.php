@@ -175,4 +175,43 @@ class Etapa2Test extends TestCase
         $exportResponse->assertStatus(200);
         $this->assertEquals('text/csv; charset=UTF-8', $exportResponse->headers->get('Content-Type'));
     }
+
+    /**
+     * CU2: No se permite crear ni asignar el rol de Superusuario desde la gestión de usuarios.
+     */
+    public function test_cannot_create_or_assign_superadmin_role(): void
+    {
+        $admin = User::where('email', 'admin@medicita.com')->first();
+        $rolSuper = Rol::where('slug', 'superadmin')->first();
+
+        // 1. El rol superadmin no debe aparecer en el formulario de creación
+        $createResponse = $this->actingAs($admin)->get('/usuarios/create');
+        $createResponse->assertStatus(200);
+        $createResponse->assertDontSee($rolSuper->nombre);
+
+        // 2. Si se intenta forzar el rol superadmin en el POST, se rechaza
+        $storeResponse = $this->actingAs($admin)->post('/usuarios', [
+            'name' => 'Falso Super Admin',
+            'ci' => '88991122',
+            'email' => 'hacker@medicita.com',
+            'rol_id' => $rolSuper->id,
+            'password' => 'Secret123!',
+            'password_confirmation' => 'Secret123!',
+            'estado' => 'activo',
+        ]);
+        $storeResponse->assertSessionHasErrors('rol_id');
+        $this->assertDatabaseMissing('users', ['email' => 'hacker@medicita.com']);
+
+        // 3. No se puede editar un usuario común para convertirlo en superadmin
+        $recepcionista = User::where('email', 'recepcion@medicita.com')->first();
+        $updateResponse = $this->actingAs($admin)->put("/usuarios/{$recepcionista->id}", [
+            'name' => $recepcionista->name,
+            'ci' => $recepcionista->ci,
+            'email' => $recepcionista->email,
+            'rol_id' => $rolSuper->id,
+            'estado' => 'activo',
+        ]);
+        $updateResponse->assertSessionHasErrors('rol_id');
+        $this->assertNotEquals('superadmin', $recepcionista->fresh()->rol->slug);
+    }
 }
