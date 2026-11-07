@@ -98,7 +98,7 @@
             <div>
                 <label class="form-label">Correo Electrónico *</label>
                 <input type="email" name="email" class="form-input" required value="{{ old('email') }}" placeholder="paciente@correo.com">
-                <small style="color: var(--color-text-muted); font-size: 0.75rem;">Se utilizará para la cuenta de usuario del paciente.</small>
+                <small id="msgCuentaPaciente" style="color: var(--color-text-muted); font-size: 0.75rem; display: {{ old('tiene_responsable') ? 'none' : 'block' }};">Se utilizará para la cuenta de usuario del paciente.</small>
             </div>
         </div>
 
@@ -185,7 +185,11 @@
 function toggleResponsableFields() {
     const isChecked = document.getElementById('toggleResponsable').checked;
     const container = document.getElementById('responsableFields');
+    const msgCuenta = document.getElementById('msgCuentaPaciente');
     container.style.display = isChecked ? 'block' : 'none';
+    if (msgCuenta) {
+        msgCuenta.style.display = isChecked ? 'none' : 'block';
+    }
 }
 </script>
 @endsection

@@ -334,7 +334,7 @@
                         <div>
                             <label class="form-label">Correo Electrónico *</label>
                             <input type="email" name="nuevo_email" id="nuevo_email" class="form-input" placeholder="paciente@correo.com" value="{{ old('nuevo_email') }}">
-                            <small style="color: var(--color-text-muted); font-size: 0.75rem;">Se creará automáticamente la cuenta con su CI como contraseña inicial.</small>
+                            <small id="msgCuentaNuevoPaciente" style="color: var(--color-text-muted); font-size: 0.75rem; display: {{ old('nuevo_tiene_responsable') ? 'none' : 'block' }};">Se creará automáticamente la cuenta con su CI como contraseña inicial.</small>
                         </div>
                     </div>
 
@@ -694,8 +694,12 @@ function seleccionarSlot(id, hora, btnElem) {
 function toggleNuevoResponsableFields() {
     const chk = document.getElementById('toggleNuevoResponsable');
     const container = document.getElementById('nuevoResponsableFields');
+    const msgCuenta = document.getElementById('msgCuentaNuevoPaciente');
     if (chk && container) {
         container.style.display = chk.checked ? 'block' : 'none';
+        if (msgCuenta) {
+            msgCuenta.style.display = chk.checked ? 'none' : 'block';
+        }
         ['nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_email', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {

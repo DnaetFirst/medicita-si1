@@ -134,7 +134,7 @@
                         <input type="text" name="telefono" id="pac_telefono" class="form-input" value="{{ old('telefono') }}" placeholder="Ej: 77012345" required>
                     </div>
                     <div>
-                        <label class="form-label">Correo Electrónico (Login) *</label>
+                        <label class="form-label" id="pac_email_label">Correo Electrónico {{ old('tiene_responsable') ? '' : '(Login)' }} *</label>
                         <input type="email" name="email" id="pac_email" class="form-input" value="{{ old('email') }}" placeholder="paciente@correo.com" required>
                     </div>
                 </div>
@@ -385,8 +385,12 @@ function setContainerActive(container, active) {
 function toggleTutorFields() {
     const chk = document.getElementById('pac_tiene_responsable');
     const container = document.getElementById('pacTutorFields');
+    const emailLbl = document.getElementById('pac_email_label');
     if (chk && container) {
         container.style.display = chk.checked ? 'block' : 'none';
+        if (emailLbl) {
+            emailLbl.innerText = chk.checked ? 'Correo Electrónico *' : 'Correo Electrónico (Login) *';
+        }
         ['pac_resp_ci', 'pac_resp_nombres', 'pac_resp_email', 'pac_resp_telefono', 'pac_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {

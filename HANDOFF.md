@@ -1,19 +1,16 @@
-# HANDOFF — Prevent Creating or Assigning Superadmin Role in CU2
+# HANDOFF — Hide Patient Account Message When Legal Tutor Is Checked
 
 ## Completed
-- Excluded `superadmin` role from creation and promotion in `UsuarioController`:
-  - `create()`: Filtered role dropdown to exclude `slug === 'superadmin'`.
-  - `store()`: Added validation rule preventing assignment of `superadmin` and safeguard `abort(422)`.
-  - `edit()`: Excluded `superadmin` from the role dropdown unless the user being edited is already a superadmin.
-  - `update()`: Prevented promoting non-superadmin users to `superadmin`.
-- Added test in `tests/Feature/Etapa2Test.php`:
-  - `test_cannot_create_or_assign_superadmin_role`: Asserts superadmin is not in `/usuarios/create`, rejects POST, and rejects PUT promotion.
-- Ran Laravel Pint (0 violations).
-- Verified full test suite.
+- Conditionally hid "Se utilizará para la cuenta de usuario del paciente." when "Tiene tutor legal" is checked:
+  - `p3_pacientes.pacientes.create`: Added `msgCuentaPaciente` toggle so the hint disappears when having a legal guardian.
+  - `p4_citas.citas.wizard`: Added `msgCuentaNuevoPaciente` toggle hiding the account creation text when a legal guardian is specified.
+  - `p1_auth.usuarios.create`: Toggled label from `Correo Electrónico (Login) *` to `Correo Electrónico *` when having a tutor.
+- Ran Pint and verified tests.
 
 ## Modified Files
-- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
-- `tests/Feature/Etapa2Test.php`
+- `resources/views/p3_pacientes/pacientes/create.blade.php`
+- `resources/views/p4_citas/citas/wizard.blade.php`
+- `resources/views/p1_auth/usuarios/create.blade.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
