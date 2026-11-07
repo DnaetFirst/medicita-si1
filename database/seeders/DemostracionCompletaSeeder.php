@@ -24,6 +24,7 @@ use App\Models\P5\ResultadoLaboratorio;
 use App\Models\P6\ReporteIa;
 use App\Models\P7\Notificacion;
 use App\Models\User;
+use App\Services\LaboratorioPdfService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -645,6 +646,17 @@ class DemostracionCompletaSeeder extends Seeder
                         'interpretacion' => $det['interp'],
                     ]
                 );
+            }
+
+            try {
+                $resultado1->load(['orden.paciente', 'orden.medico.user', 'detalles.examen', 'validadoPor', 'publicadoPor']);
+                $pdfContent = app(LaboratorioPdfService::class)->generar($resultado1);
+                Storage::disk('local')->put($pdfRelativePath, $pdfContent);
+                $resultado1->updateQuietly([
+                    'archivo_pdf_contenido' => base64_encode($pdfContent),
+                ]);
+            } catch (\Throwable) {
+                // Continuar si ocurre alguna inconsistencia de entorno
             }
         }
 

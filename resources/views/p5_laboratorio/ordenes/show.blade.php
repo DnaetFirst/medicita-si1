@@ -107,9 +107,7 @@
             <div class="cycle-actions" style="margin-top: 1rem;">
                 @if($res->isPublicado())
                     <a class="btn btn-secondary" href="{{ route('laboratorio.resultados.show', $res) }}">Ver informe completo</a>
-                    @if($res->archivo_pdf_path)
-                        <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $res) }}">Descargar PDF Oficial</a>
-                    @endif
+                    <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $res) }}">Descargar PDF Oficial</a>
                 @endif
 
                 @if(auth()->user()->rol?->slug === 'lab')

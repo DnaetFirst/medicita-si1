@@ -13,6 +13,7 @@ use App\Models\P5\ResultadoLaboratorio;
 use App\Models\P7\Notificacion;
 use App\Services\AccesoPacienteService;
 use App\Services\BitacoraService;
+use App\Services\LaboratorioPdfService;
 use App\Services\NotificacionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -354,26 +355,67 @@ class LaboratorioController extends Controller
     /**
      * Descarga autenticada del PDF privado de laboratorio (CU15).
      */
-    public function descargarPdf(Request $request, ResultadoLaboratorio $resultado): StreamedResponse
+    public function descargarPdf(Request $request, ResultadoLaboratorio $resultado, LaboratorioPdfService $pdfService): StreamedResponse
     {
         $this->acceso->autorizarResultado($request->user(), $resultado);
-        abort_unless($resultado->archivo_pdf_contenido || ($resultado->archivo_pdf_path && Storage::disk('local')->exists($resultado->archivo_pdf_path)), 404, 'El archivo PDF no está disponible.');
 
         BitacoraService::registrar('DESCARGAR_PDF_LABORATORIO', 'P5_Laboratorio', [
             'resultado_id' => $resultado->id,
-            'archivo' => $resultado->archivo_pdf_path,
+            'archivo' => $resultado->archivo_pdf_path ?? "Resultado-{$resultado->codigo_resultado}.pdf",
         ]);
 
+        // 1. Si existe archivo adjunto específico en base de datos y no es el dummy vacío del seeder
         if ($resultado->archivo_pdf_contenido) {
             $contenido = base64_decode($resultado->archivo_pdf_contenido, true);
-            abort_if($contenido === false, 500, 'No se pudo recuperar el documento.');
-
-            return response()->streamDownload(function () use ($contenido): void {
-                echo $contenido;
-            }, "Resultado-{$resultado->codigo_resultado}.pdf", ['Content-Type' => 'application/pdf', 'Cache-Control' => 'private, no-store']);
+            if ($contenido !== false && ! $this->esPdfDummy($contenido)) {
+                return response()->streamDownload(function () use ($contenido): void {
+                    echo $contenido;
+                }, "Resultado-{$resultado->codigo_resultado}.pdf", [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => "attachment; filename=\"Resultado-{$resultado->codigo_resultado}.pdf\"",
+                    'Cache-Control' => 'private, no-store',
+                ]);
+            }
         }
 
-        return Storage::disk('local')->download($resultado->archivo_pdf_path, "Resultado-{$resultado->codigo_resultado}.pdf");
+        // 2. Si existe el archivo en almacenamiento local y no es el dummy vacío
+        if ($resultado->archivo_pdf_path && Storage::disk('local')->exists($resultado->archivo_pdf_path)) {
+            $contenidoDisk = Storage::disk('local')->get($resultado->archivo_pdf_path);
+            if (! $this->esPdfDummy($contenidoDisk)) {
+                return Storage::disk('local')->download($resultado->archivo_pdf_path, "Resultado-{$resultado->codigo_resultado}.pdf");
+            }
+        }
+
+        // 3. Fallback clínico oficial garantizado: Generación dinámica del informe completo
+        $pdfGenerado = $pdfService->generar($resultado);
+
+        try {
+            $resultado->updateQuietly([
+                'archivo_pdf_contenido' => base64_encode($pdfGenerado),
+            ]);
+        } catch (\Throwable) {
+            // Ignorar fallas menores de caché concurrente
+        }
+
+        return response()->streamDownload(function () use ($pdfGenerado): void {
+            echo $pdfGenerado;
+        }, "Resultado-{$resultado->codigo_resultado}.pdf", [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"Resultado-{$resultado->codigo_resultado}.pdf\"",
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    /**
+     * Determina si el contenido corresponde al archivo sintético vacío del seeder.
+     */
+    private function esPdfDummy(?string $contenido): bool
+    {
+        if (empty($contenido)) {
+            return true;
+        }
+
+        return strlen($contenido) < 400 && str_contains($contenido, '/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>>>');
     }
 
     /**

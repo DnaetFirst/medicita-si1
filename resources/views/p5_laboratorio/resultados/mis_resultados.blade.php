@@ -38,9 +38,10 @@
 
                 <div class="cycle-actions">
                     <a class="btn btn-secondary" href="{{ route('laboratorio.resultados.show', $res) }}">Ver detalles del análisis</a>
-                    @if($res->archivo_pdf_path)
-                        <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $res) }}">Descargar PDF Oficial</a>
-                    @endif
+                    <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $res) }}" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.5L19 9.5V19a2 2 0 01-2 2z"/></svg>
+                        Descargar PDF Oficial
+                    </a>
                 </div>
             </article>
         @empty

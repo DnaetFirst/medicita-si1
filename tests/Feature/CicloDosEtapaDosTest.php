@@ -356,4 +356,67 @@ class CicloDosEtapaDosTest extends TestCase
             ->assertOk()
             ->assertSee('Lista de Espera (CU18)');
     }
+
+    public function test_patient_and_doctor_can_download_generated_pdf_report_when_no_file_uploaded(): void
+    {
+        $lab = $this->usuario('lab');
+        $pacienteUser = $this->usuario('paciente');
+        $paciente = Paciente::factory()->create(['user_id' => $pacienteUser->id]);
+        $medico = Medico::factory()->create();
+        Cita::factory()->create(['paciente_id' => $paciente->id, 'medico_id' => $medico->id]);
+
+        $orden = OrdenLaboratorio::factory()->create([
+            'paciente_id' => $paciente->id,
+            'medico_id' => $medico->id,
+            'estado' => 'emitida',
+        ]);
+        $examen = ExamenLaboratorio::factory()->create(['nombre' => 'Hemograma Completo']);
+        $orden->examenes()->attach($examen, ['estado' => 'pendiente']);
+
+        // Lab registra resultado sin archivo PDF
+        $this->actingAs($lab)->post(route('laboratorio.resultados.store', $orden), [
+            'detalles' => [
+                [
+                    'examen_laboratorio_id' => $examen->id,
+                    'parametro' => 'Hemoglobina',
+                    'valor' => '14.5',
+                    'unidad_medida' => 'g/dL',
+                    'rango_referencia' => '12.0 - 16.0',
+                    'interpretacion' => 'Normal',
+                ],
+            ],
+            'observaciones' => 'Muestra procesada correctamente.',
+        ])->assertRedirect();
+
+        $resultado = ResultadoLaboratorio::where('orden_laboratorio_id', $orden->id)->firstOrFail();
+        $this->assertNull($resultado->archivo_pdf_path);
+
+        // Validar y publicar
+        $this->actingAs($lab)->post(route('laboratorio.resultados.validar', $resultado))->assertRedirect();
+        $this->actingAs($lab)->post(route('laboratorio.resultados.publicar', $resultado))->assertRedirect();
+        $this->assertTrue($resultado->fresh()->isPublicado());
+
+        // 1. Paciente visualiza el botón de descarga oficial en la vista
+        $this->actingAs($pacienteUser)->get(route('laboratorio.resultados.show', $resultado))
+            ->assertOk()
+            ->assertSee('Descargar PDF Oficial');
+
+        // 2. Paciente descarga el PDF generado dinámicamente
+        $response = $this->actingAs($pacienteUser)->get(route('laboratorio.resultados.descargar', $resultado));
+        $response->assertOk();
+        $response->assertDownload("Resultado-{$resultado->codigo_resultado}.pdf");
+        $pdfContent = $response->streamedContent();
+        $this->assertStringStartsWith('%PDF-1.4', $pdfContent);
+        $this->assertStringContainsString('MEDICITA PRO', $pdfContent);
+
+        // 3. Médico solicitante también puede descargar el informe oficial
+        $docResponse = $this->actingAs($medico->user)->get(route('laboratorio.resultados.descargar', $resultado));
+        $docResponse->assertOk();
+        $docResponse->assertDownload("Resultado-{$resultado->codigo_resultado}.pdf");
+
+        // 4. En mis_resultados se muestra el botón oficial para el paciente
+        $this->actingAs($pacienteUser)->get(route('laboratorio.mis_resultados'))
+            ->assertOk()
+            ->assertSee('Descargar PDF Oficial');
+    }
 }

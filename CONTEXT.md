@@ -53,7 +53,7 @@ It enforces strict data isolation across patients, legal guardians, receptionist
   - Laboratory (`role:admin,lab,medico,paciente`): `/laboratorio/ordenes`, `POST /laboratorio/ordenes`, `/laboratorio/ordenes/{orden}`, `/laboratorio/ordenes/{orden}/resultados/crear`, `POST /laboratorio/resultados`, `/laboratorio/resultados/{resultado}`, `/laboratorio/resultados/{resultado}/pdf`, `/laboratorio/mis-resultados`.
   - Business Intelligence & AI (`role:admin,recepcionista`): `/reportes`, `/reportes/exportar/csv`, `/reportes/exportar/pdf`, `POST /reportes/ia/consultar`.
   - Notifications: `/avisos`, `POST /avisos/{aviso}/leer`.
-- **Key Domain Services:** `CitaWorkflowService`, `AccesoPacienteService` (enforces clinical privacy), `SlotGeneratorService`, `RecuperacionCupoService`, `ReporteIndicadoresService`, `AiReporteService`, `NotificacionService`, `BitacoraService`.
+- **Key Domain Services:** `CitaWorkflowService`, `AccesoPacienteService` (enforces clinical privacy), `LaboratorioPdfService`, `SlotGeneratorService`, `RecuperacionCupoService`, `ReporteIndicadoresService`, `AiReporteService`, `NotificacionService`, `BitacoraService`.
 - **Testing Suite:** Feature tests organized by stages (`Etapa2Test` to `Etapa5Test`, `SuperAdminTest`, `CicloDosEtapaUnoTest`, `CicloDosEtapaDosTest`, `CicloDosEtapaTresTest`, `CicloDosMigracionTest`).
 
 ## Runtime and Deployment Review (2026-11-07)

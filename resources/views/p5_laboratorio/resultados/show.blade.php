@@ -8,8 +8,9 @@
             <p>Orden: <strong>{{ $resultado->orden->codigo_orden }}</strong> · Paciente: <strong>{{ $resultado->orden->paciente->nombre_completo }}</strong></p>
         </div>
         <div class="cycle-actions">
-            @if($resultado->archivo_pdf_path)
-                <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $resultado) }}">
+            @if($resultado->isPublicado() || auth()->user()->rol?->slug === 'lab' || auth()->user()->isAdmin())
+                <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $resultado) }}" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.5L19 9.5V19a2 2 0 01-2 2z"/></svg>
                     Descargar PDF Oficial
                 </a>
             @endif
