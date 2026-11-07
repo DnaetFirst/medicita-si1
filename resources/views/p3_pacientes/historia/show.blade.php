@@ -1,8 +1,65 @@
 @extends('layouts.app')
 @section('content')
 <div class="cycle-page">
-    <div class="cycle-heading"><div><h1>Historia clínica</h1><p>{{ $paciente->nombre_completo }} · {{ $historia?->nro_expediente ?? 'Expediente pendiente de apertura' }}</p></div><a class="btn btn-secondary" href="{{ route('historial.index', ['paciente_id' => $paciente->id]) }}">Historial de citas</a></div>
-    <section class="card cycle-card"><h2>Resumen clínico</h2><div class="cycle-grid"><div><h3>Antecedentes</h3><p class="cycle-text">{{ $historia?->antecedentes ?? 'Sin registrar' }}</p></div><div><h3>Medicación habitual</h3><p class="cycle-text">{{ $historia?->medicacion_habitual ?? 'Sin registrar' }}</p></div></div></section>
+    <div class="cycle-heading">
+        <div>
+            <h1>Historia clínica</h1>
+            <p>{{ $paciente->nombre_completo }} · {{ $historia?->nro_expediente ?? 'Expediente pendiente de apertura' }}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+            <a class="btn btn-primary" href="{{ route('laboratorio.ordenes.create', $paciente) }}">🧪 Solicitar Análisis (CU15)</a>
+            <a class="btn btn-secondary" href="{{ route('historial.index', ['paciente_id' => $paciente->id]) }}">Historial de citas</a>
+        </div>
+    </div>
+    <section class="card cycle-card">
+        <h2>Resumen clínico</h2>
+        <div class="cycle-grid">
+            <div>
+                <h3>Antecedentes</h3>
+                <p class="cycle-text">{{ $historia?->antecedentes ?? 'Sin registrar' }}</p>
+            </div>
+            <div>
+                <h3>Medicación habitual</h3>
+                <p class="cycle-text">{{ $historia?->medicacion_habitual ?? 'Sin registrar' }}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Órdenes y Resultados de Laboratorio Clínico (CU15) -->
+    <section class="card cycle-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h2>🧪 Órdenes y Resultados de Laboratorio (CU15)</h2>
+            <a class="btn btn-primary" href="{{ route('laboratorio.ordenes.create', $paciente) }}" style="font-size: var(--font-sm);">+ Nueva Solicitud de Análisis</a>
+        </div>
+        @if(isset($ordenes) && $ordenes->isNotEmpty())
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                @foreach($ordenes as $ord)
+                    <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: var(--color-bg-card);">
+                        <div>
+                            <strong>{{ $ord->codigo_orden }}</strong> · <span class="text-muted">{{ $ord->created_at->format('d/m/Y H:i') }}</span>
+                            <div style="margin-top: 0.35rem; display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                                @foreach($ord->examenes as $ex)
+                                    <span class="badge" style="background: var(--color-bg-secondary); font-size: 0.75rem;">{{ $ex->nombre }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <span class="badge {{ $ord->estado === 'finalizada' ? 'badge-success' : 'badge-info' }}">{{ ucfirst($ord->estado) }}</span>
+                            <a class="btn btn-secondary" href="{{ route('laboratorio.ordenes.show', $ord) }}" style="font-size: var(--font-sm);">Ver Orden</a>
+                            @foreach($ord->resultados->where('estado', 'publicado') as $resPub)
+                                <a class="btn btn-primary" href="{{ route('laboratorio.resultados.descargar', $resPub) }}" style="font-size: var(--font-sm); display: inline-flex; align-items: center; gap: 0.35rem;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.5L19 9.5V19a2 2 0 01-2 2z"/></svg>
+                                    PDF ({{ $resPub->codigo_resultado }})
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="cycle-text">No se registran órdenes de laboratorio para este paciente.</p>
+        @endif
+    </section>
     @if($citas->isNotEmpty())
     <section class="card cycle-card"><h2>Registrar atención</h2><p>Guardar conserva la cita en atención. El cierre se registra desde la ficha.</p>
         <form action="{{ route('historia.store', $paciente) }}" method="POST">@csrf

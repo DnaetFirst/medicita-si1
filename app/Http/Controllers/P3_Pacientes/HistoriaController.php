@@ -9,6 +9,7 @@ use App\Models\P3\Derivacion;
 use App\Models\P3\HistoriaClinica;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
+use App\Models\P5\OrdenLaboratorio;
 use App\Services\AccesoPacienteService;
 use App\Services\BitacoraService;
 use Illuminate\Http\RedirectResponse;
@@ -24,10 +25,12 @@ class HistoriaController extends Controller
         $historia = HistoriaClinica::where('paciente_id', $paciente->id)->first();
         $atenciones = AtencionMedica::with(['autor', 'derivaciones.especialidad'])->where('historia_clinica_id', $historia?->id ?? 0)->latest('id')->paginate(10);
         $citas = $paciente->citas()->where('medico_id', $request->user()->medico->id)->where('estado', 'en_atencion')->get();
+        $ordenes = OrdenLaboratorio::with(['examenes', 'resultados'])->where('paciente_id', $paciente->id)->latest()->get();
         BitacoraService::registrar('CONSULTAR_HISTORIA_CLINICA', 'P3_Pacientes', ['paciente_id' => $paciente->id]);
 
         return view('p3_pacientes.historia.show', [
             'paciente' => $paciente, 'historia' => $historia, 'atenciones' => $atenciones, 'citas' => $citas,
+            'ordenes' => $ordenes,
             'especialidades' => Especialidad::where('activo', true)->orderBy('nombre')->get(), 'header' => 'Historia clínica',
         ]);
     }
