@@ -139,6 +139,7 @@ class CitaWizardController extends Controller
                     'nuevo_tiene_responsable' => 'nullable|boolean',
                     'nuevo_resp_ci' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:20',
                     'nuevo_resp_nombres' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:100',
+                    'nuevo_resp_email' => 'required_if:nuevo_tiene_responsable,1|nullable|email|max:150',
                     'nuevo_resp_parentesco' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:50',
                     'nuevo_resp_telefono' => 'required_if:nuevo_tiene_responsable,1|nullable|string|max:20',
                     'nuevo_resp_vigencia' => 'required_if:nuevo_tiene_responsable,1|nullable|date|after:today',
@@ -154,6 +155,8 @@ class CitaWizardController extends Controller
                     'nuevo_email.email' => 'El formato del correo electrónico no es válido.',
                     'nuevo_email.unique' => 'Este correo electrónico ya está registrado para otro usuario.',
                     'nuevo_resp_ci.required_if' => 'El CI del tutor legal es obligatorio cuando se marca tutor.',
+                    'nuevo_resp_email.required_if' => 'El correo electrónico del tutor es obligatorio para crear su cuenta de usuario.',
+                    'nuevo_resp_email.email' => 'El formato del correo electrónico del tutor no es válido.',
                     'nuevo_resp_nombres.required_if' => 'El nombre del tutor legal es obligatorio.',
                     'nuevo_resp_telefono.required_if' => 'El teléfono del tutor legal es obligatorio.',
                     'nuevo_resp_vigencia.required_if' => 'La vigencia de la autorización es obligatoria.',
@@ -263,12 +266,12 @@ class CitaWizardController extends Controller
 
                     // Registrar tutor o responsable legal si fue marcado
                     if (! empty($validatedPaciente['nuevo_tiene_responsable']) && ! empty($validatedPaciente['nuevo_resp_nombres'])) {
-                        $tutorUser = User::where('ci', $validatedPaciente['nuevo_resp_ci'])->first();
+                        $tutorUser = User::where('ci', $validatedPaciente['nuevo_resp_ci'])->orWhere('email', $validatedPaciente['nuevo_resp_email'])->first();
                         if (! $tutorUser) {
                             $tutorUser = User::create([
                                 'name' => $validatedPaciente['nuevo_resp_nombres'],
                                 'ci' => $validatedPaciente['nuevo_resp_ci'],
-                                'email' => 'tutor.'.$validatedPaciente['nuevo_resp_ci'].'@medicita.local',
+                                'email' => $validatedPaciente['nuevo_resp_email'],
                                 'password' => Hash::make($validatedPaciente['nuevo_resp_ci']),
                                 'rol_id' => $rolPaciente->id,
                                 'telefono' => $validatedPaciente['nuevo_resp_telefono'],

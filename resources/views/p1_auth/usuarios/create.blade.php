@@ -167,7 +167,7 @@
                 </div>
 
                 <div id="pacTutorFields" style="display: {{ old('tiene_responsable') ? 'block' : 'none' }}; background: var(--color-surface-hover); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; border: 1px dashed var(--color-border);">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.75rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 0.75rem;">
                         <div>
                             <label class="form-label">Cédula del Tutor / Responsable *</label>
                             <input type="text" name="resp_ci" id="pac_resp_ci" class="form-input" value="{{ old('resp_ci') }}" placeholder="Ej: 3481902">
@@ -175,6 +175,10 @@
                         <div>
                             <label class="form-label">Nombre Completo del Tutor *</label>
                             <input type="text" name="resp_nombres" id="pac_resp_nombres" class="form-input" value="{{ old('resp_nombres') }}" placeholder="Ej: Roberto Gómez">
+                        </div>
+                        <div>
+                            <label class="form-label">Correo Electrónico del Tutor *</label>
+                            <input type="email" name="resp_email" id="pac_resp_email" class="form-input" value="{{ old('resp_email') }}" placeholder="Ej: roberto.gomez@gmail.com">
                         </div>
                     </div>
 
@@ -383,7 +387,7 @@ function toggleTutorFields() {
     const container = document.getElementById('pacTutorFields');
     if (chk && container) {
         container.style.display = chk.checked ? 'block' : 'none';
-        ['pac_resp_ci', 'pac_resp_nombres', 'pac_resp_telefono', 'pac_resp_vigencia'].forEach(id => {
+        ['pac_resp_ci', 'pac_resp_nombres', 'pac_resp_email', 'pac_resp_telefono', 'pac_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 if (chk.checked) el.setAttribute('required', 'required');

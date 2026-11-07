@@ -12,6 +12,7 @@ use App\Models\P4\Cita;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class Etapa4Test extends TestCase
@@ -91,6 +92,7 @@ class Etapa4Test extends TestCase
             'tiene_responsable' => '1',
             'resp_ci' => '3210987',
             'resp_nombres' => 'Claudia Justiniano (Madre)',
+            'resp_email' => 'claudia.justiniano@medicita.com',
             'resp_parentesco' => 'Madre',
             'resp_telefono' => '72030499',
             'resp_vigencia' => now()->addYear()->toDateString(),
@@ -109,6 +111,11 @@ class Etapa4Test extends TestCase
             'parentesco' => 'Madre',
         ]);
 
+        $tutorUser = User::where('ci', '3210987')->first();
+        $this->assertNotNull($tutorUser);
+        $this->assertEquals('claudia.justiniano@medicita.com', $tutorUser->email);
+        $this->assertTrue($tutorUser->isPaciente());
+
         $this->assertDatabaseHas('bitacoras', [
             'accion' => 'REGISTRAR_PACIENTE',
             'modulo' => 'P3_Pacientes',
@@ -123,6 +130,7 @@ class Etapa4Test extends TestCase
         $data = [
             'ci' => '4455667',
             'nombres' => 'Jorge Suárez (Padre)',
+            'email' => 'jorge.suarez@medicita.com',
             'parentesco' => 'Padre',
             'telefono' => '70099887',
             'fecha_limite_vigencia' => now()->addMonths(6)->toDateString(),
@@ -139,6 +147,10 @@ class Etapa4Test extends TestCase
 
         $responsable = ResponsableAutorizado::where('ci', '4455667')->first();
         $this->assertTrue($responsable->isVigente());
+
+        $tutorUser = User::where('ci', '4455667')->first();
+        $this->assertNotNull($tutorUser);
+        $this->assertEquals('jorge.suarez@medicita.com', $tutorUser->email);
     }
 
     /**
@@ -532,6 +544,7 @@ class Etapa4Test extends TestCase
             'nuevo_tiene_responsable' => 1,
             'nuevo_resp_ci' => $ciTutor,
             'nuevo_resp_nombres' => 'Carmen Banzer (Madre)',
+            'nuevo_resp_email' => 'carmen.banzer@correo.com',
             'nuevo_resp_parentesco' => 'Madre',
             'nuevo_resp_telefono' => '76543299',
             'nuevo_resp_vigencia' => now()->addMonths(6)->toDateString(),
@@ -553,6 +566,7 @@ class Etapa4Test extends TestCase
         $tutorUser = User::where('ci', $ciTutor)->first();
         $this->assertNotNull($tutorUser);
         $this->assertTrue($tutorUser->isPaciente());
+        $this->assertEquals('carmen.banzer@correo.com', $tutorUser->email);
 
         // Verificar cita creada
         $this->assertDatabaseHas('citas', [
@@ -639,5 +653,46 @@ class Etapa4Test extends TestCase
             'slot_id' => $nuevoSlot->id,
             'estado' => 'programada',
         ]);
+    }
+
+    /**
+     * CU7: El registro de tutor requiere correo electrónico obligatorio y genera su cuenta con CI como contraseña inicial.
+     */
+    public function test_tutor_registration_requires_email_and_creates_account_with_ci_password(): void
+    {
+        $ciTutor = '7788990';
+        $emailTutor = 'tutor.legal@familiamedicita.com';
+
+        // 1. Falla si tiene_responsable = 1 pero falta el correo del tutor
+        $payloadSinEmail = [
+            'ci' => '9988771',
+            'nombres' => 'Sebastián',
+            'apellidos' => 'Morales',
+            'fecha_nacimiento' => '2019-05-10',
+            'telefono' => '71122334',
+            'email' => 'sebastian.morales@medicita.com',
+            'tiene_responsable' => '1',
+            'resp_ci' => $ciTutor,
+            'resp_nombres' => 'Raúl Morales',
+            'resp_parentesco' => 'Padre',
+            'resp_telefono' => '71122335',
+            'resp_vigencia' => now()->addYear()->toDateString(),
+        ];
+
+        $responseFalla = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $payloadSinEmail);
+        $responseFalla->assertSessionHasErrors('resp_email');
+
+        // 2. Con correo electrónico del tutor, se registra exitosamente
+        $payloadValido = array_merge($payloadSinEmail, ['resp_email' => $emailTutor]);
+        $responseExito = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $payloadValido);
+        $responseExito->assertRedirect();
+
+        // 3. Verificar cuenta del tutor creada con CI como contraseña inicial y cambio forzado
+        $tutor = User::where('ci', $ciTutor)->first();
+        $this->assertNotNull($tutor);
+        $this->assertEquals($emailTutor, $tutor->email);
+        $this->assertTrue(Hash::check($ciTutor, $tutor->password));
+        $this->assertTrue($tutor->debe_cambiar_password);
+        $this->assertTrue($tutor->isPaciente());
     }
 }

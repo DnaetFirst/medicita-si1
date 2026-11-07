@@ -93,6 +93,7 @@ class PacienteController extends Controller
             'tiene_responsable' => 'nullable|boolean',
             'resp_ci' => 'required_if:tiene_responsable,1|nullable|string|max:20',
             'resp_nombres' => 'required_if:tiene_responsable,1|nullable|string|max:100',
+            'resp_email' => 'required_if:tiene_responsable,1|nullable|email|max:150',
             'resp_parentesco' => 'required_if:tiene_responsable,1|nullable|string|max:50',
             'resp_telefono' => 'required_if:tiene_responsable,1|nullable|string|max:20',
             'resp_vigencia' => 'required_if:tiene_responsable,1|nullable|date|after:today',
@@ -108,6 +109,8 @@ class PacienteController extends Controller
             'email.email' => 'El formato del correo electrónico no es válido.',
             'email.unique' => 'Este correo electrónico ya está registrado para otro usuario del sistema.',
             'resp_ci.required_if' => 'El CI del responsable legal es obligatorio.',
+            'resp_email.required_if' => 'El correo electrónico del tutor es obligatorio para crear su cuenta de usuario.',
+            'resp_email.email' => 'El formato del correo electrónico del tutor no es válido.',
             'resp_vigencia.after' => 'La fecha de vigencia de la autorización debe ser posterior a hoy.',
         ]);
 
@@ -168,12 +171,12 @@ class PacienteController extends Controller
 
             // 4. Responsable legal / tutor opcional
             if (! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres'])) {
-                $tutorUser = User::where('ci', $validated['resp_ci'])->first();
+                $tutorUser = User::where('ci', $validated['resp_ci'])->orWhere('email', $validated['resp_email'])->first();
                 if (! $tutorUser) {
                     $tutorUser = User::create([
                         'name' => $validated['resp_nombres'],
                         'ci' => $validated['resp_ci'],
-                        'email' => 'tutor.'.$validated['resp_ci'].'@medicita.local',
+                        'email' => $validated['resp_email'],
                         'password' => Hash::make($validated['resp_ci']),
                         'rol_id' => $rolPaciente?->id,
                         'telefono' => $validated['resp_telefono'],
@@ -304,10 +307,12 @@ class PacienteController extends Controller
             'puede_ver_resultados' => 'sometimes|boolean',
             'ci' => 'required|string|max:20',
             'nombres' => 'required|string|max:100',
+            'email' => 'required|email|max:150',
             'parentesco' => 'required|string|max:50',
             'telefono' => 'required|string|max:20',
             'fecha_limite_vigencia' => 'required|date|after:today',
         ], [
+            'email.required' => 'El correo electrónico del responsable legal es obligatorio.',
             'fecha_limite_vigencia.after' => 'La fecha límite de vigencia debe ser posterior a la fecha actual.',
         ]);
 
@@ -316,17 +321,17 @@ class PacienteController extends Controller
             $cuenta = User::findOrFail($tutorUserId);
             abort_unless($cuenta->isPaciente() && $cuenta->estado === 'activo' && $cuenta->ci === $validated['ci'], 422, 'La cuenta debe ser de paciente, estar activa y corresponder al CI del responsable.');
         } else {
-            // Vincular automáticamente si ya existe una cuenta de usuario para este CI de tutor
-            $cuentaExistente = User::where('ci', $validated['ci'])->first();
+            // Vincular automáticamente si ya existe una cuenta de usuario para este CI o email de tutor
+            $cuentaExistente = User::where('ci', $validated['ci'])->orWhere('email', $validated['email'])->first();
             if ($cuentaExistente) {
                 $tutorUserId = $cuentaExistente->id;
             } else {
-                // Crear cuenta para el tutor con su CI como contraseña inicial
+                // Crear cuenta para el tutor con su correo y su CI como contraseña inicial
                 $rolPaciente = Rol::where('slug', 'paciente')->first();
                 $nuevoTutorUser = User::create([
                     'name' => $validated['nombres'],
                     'ci' => $validated['ci'],
-                    'email' => 'tutor.'.$validated['ci'].'@medicita.local',
+                    'email' => $validated['email'],
                     'password' => Hash::make($validated['ci']),
                     'rol_id' => $rolPaciente?->id,
                     'telefono' => $validated['telefono'],

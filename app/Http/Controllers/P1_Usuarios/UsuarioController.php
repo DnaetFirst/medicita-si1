@@ -134,6 +134,7 @@ class UsuarioController extends Controller
             'tiene_responsable' => 'nullable|boolean',
             'resp_ci' => 'required_if:tiene_responsable,1|nullable|string|max:20',
             'resp_nombres' => 'required_if:tiene_responsable,1|nullable|string|max:100',
+            'resp_email' => 'required_if:tiene_responsable,1|nullable|email|max:150',
             'resp_parentesco' => 'required_if:tiene_responsable,1|nullable|string|max:50',
             'resp_telefono' => 'required_if:tiene_responsable,1|nullable|string|max:20',
             'resp_vigencia' => 'required_if:tiene_responsable,1|nullable|date|after:today',
@@ -148,6 +149,8 @@ class UsuarioController extends Controller
             'email.required' => 'El correo electrónico es obligatorio para el usuario del paciente.',
             'email.unique' => 'Este correo electrónico ya se encuentra registrado.',
             'resp_ci.required_if' => 'El CI del responsable legal es obligatorio.',
+            'resp_email.required_if' => 'El correo electrónico del tutor es obligatorio para crear su cuenta de usuario.',
+            'resp_email.email' => 'El formato del correo electrónico del tutor no es válido.',
             'resp_vigencia.after' => 'La fecha de vigencia de la autorización debe ser posterior a hoy.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
         ]);
@@ -194,12 +197,12 @@ class UsuarioController extends Controller
             );
 
             if (! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres'])) {
-                $tutorUser = User::where('ci', $validated['resp_ci'])->first();
+                $tutorUser = User::where('ci', $validated['resp_ci'])->orWhere('email', $validated['resp_email'])->first();
                 if (! $tutorUser) {
                     $tutorUser = User::create([
                         'name' => $validated['resp_nombres'],
                         'ci' => $validated['resp_ci'],
-                        'email' => 'tutor.'.$validated['resp_ci'].'@medicita.local',
+                        'email' => $validated['resp_email'],
                         'password' => Hash::make($validated['resp_ci']),
                         'rol_id' => $rol->id,
                         'telefono' => $validated['resp_telefono'],

@@ -366,7 +366,7 @@
                     </div>
 
                     <div id="nuevoResponsableFields" style="display: {{ old('nuevo_tiene_responsable') ? 'block' : 'none' }}; background: white; padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 0.5rem; border: 1px solid var(--color-border);">
-                        <div class="grid-2" style="margin-bottom: 0.75rem;">
+                        <div class="grid-3" style="margin-bottom: 0.75rem;">
                             <div>
                                 <label class="form-label">Cédula del Tutor / Responsable *</label>
                                 <input type="text" name="nuevo_resp_ci" id="nuevo_resp_ci" class="form-input" placeholder="Ej. 3481902" value="{{ old('nuevo_resp_ci') }}">
@@ -374,6 +374,10 @@
                             <div>
                                 <label class="form-label">Nombre Completo del Tutor *</label>
                                 <input type="text" name="nuevo_resp_nombres" id="nuevo_resp_nombres" class="form-input" placeholder="Ej. Roberto Gómez" value="{{ old('nuevo_resp_nombres') }}">
+                            </div>
+                            <div>
+                                <label class="form-label">Correo Electrónico del Tutor *</label>
+                                <input type="email" name="nuevo_resp_email" id="nuevo_resp_email" class="form-input" placeholder="Ej. roberto.gomez@gmail.com" value="{{ old('nuevo_resp_email') }}">
                             </div>
                         </div>
 
@@ -692,7 +696,7 @@ function toggleNuevoResponsableFields() {
     const container = document.getElementById('nuevoResponsableFields');
     if (chk && container) {
         container.style.display = chk.checked ? 'block' : 'none';
-        ['nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
+        ['nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_email', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 if (chk.checked) el.setAttribute('required', 'required');
@@ -728,7 +732,7 @@ function toggleTipoPaciente(tipo) {
         if (crearNuevo) crearNuevo.value = '0';
         if (selectPac) selectPac.setAttribute('required', 'required');
 
-        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email', 'nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
+        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email', 'nuevo_resp_ci', 'nuevo_resp_nombres', 'nuevo_resp_email', 'nuevo_resp_telefono', 'nuevo_resp_vigencia'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.removeAttribute('required');
         });

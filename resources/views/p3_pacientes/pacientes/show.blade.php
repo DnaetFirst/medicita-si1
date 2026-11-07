@@ -299,6 +299,14 @@
                 <input type="text" name="nombres" class="form-input" required placeholder="Ej. Roberto Gómez Salazar">
             </div>
 
+            <div style="margin-bottom: 0.75rem;">
+                <label class="form-label">Correo Electrónico del Tutor / Responsable *</label>
+                <input type="email" name="email" class="form-input" required placeholder="Ej. roberto.gomez@gmail.com">
+                <small style="color: var(--color-text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                    El tutor utilizará este correo electrónico para iniciar sesión en el portal.
+                </small>
+            </div>
+
             <div class="grid-2" style="margin-bottom: 0.75rem;">
                 <div>
                     <label class="form-label">Parentesco *</label>
