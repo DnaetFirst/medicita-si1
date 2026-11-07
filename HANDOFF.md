@@ -1,20 +1,20 @@
-# HANDOFF — Full Patient Form in Wizard, Role Paciente Consistency & Text Cleanups
+# HANDOFF — Single Active Ficha Policy, Wizard Patient Form & Password Text Simplification
 
 ## Completed
-- Removed out-of-place "Mínimo 8 caracteres" notice on login screen and input placeholders.
-- Simplified password security helper text across user creation, doctor registration, and profile modal.
-- Embedded full patient registration form in appointment wizard (`/citas/nueva`) matching `/pacientes/create` exactly (personal data, contact, residence, emergency, and legal guardian/tutor).
-- Maintained field optionality (gender, blood type, address, emergency contact, tutor) and required rules.
-- Guaranteed all new patients and created tutors receive user accounts with role `paciente` and CI as initial password.
-- Verified test suite (149 tests passing, 740 assertions) and Pint styling.
+- Enforced single active ficha rule in `CitaWorkflowService::validarCupo` preventing patients with an active appointment (`programada`, `confirmada`, `en_espera`, `en_atencion`) from booking another appointment, returning a 422 with a detailed message.
+- Rescheduling, waitlist slot acceptance, and derived appointments correctly exempt the active ficha check.
+- Added visual blocking banner and disabled submit button in `/citas/nueva` when the selected patient already has an active appointment.
+- Updated searchable combobox in appointment wizard with live badges (`⛔ Ficha Activa`) and instant validation.
+- Simplified password helper text to "Mayúscula, minúscula, número y símbolo." across all auth/user/doctor views.
+- Added feature tests in `tests/Feature/Etapa4Test.php` covering active appointment prevention and post-attendance booking.
+- Verified test suite (151 tests passed, 745 assertions) and Pint styling.
 
 ## Modified Files
-- `app/Http/Controllers/P3_Pacientes/PacienteController.php`, `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `resources/views/p4_citas/citas/wizard.blade.php`, `resources/views/p1_auth/login.blade.php`
-- `resources/views/p1_auth/usuarios/create.blade.php`, `resources/views/p1_auth/usuarios/edit.blade.php`
-- `resources/views/p2_medicos/medicos/create.blade.php`, `resources/views/layouts/app.blade.php`
-- `tests/Feature/Etapa4Test.php`, `HANDOFF.md`
+- `app/Services/CitaWorkflowService.php`, `app/Http/Controllers/P4_Citas/CitaWizardController.php`
+- `resources/views/p4_citas/citas/wizard.blade.php`, `resources/views/layouts/app.blade.php`
+- `resources/views/p1_auth/usuarios/create.blade.php`, `resources/views/p1_auth/usuarios/edit.blade.php`, `resources/views/p2_medicos/medicos/create.blade.php`
+- `tests/Feature/Etapa4Test.php`, `CONTEXT.md`, `HANDOFF.md`
 
 ## Next Step / Pending
-- Commit and push to GitHub `main` for automated Render live deployment.
-- Verify appointment wizard patient creation on live production.
+- Commit and push to GitHub `main` for automated Render live deployment (`medicita-si1-defensa`).
+- Verify the active ficha prevention live on the production site.

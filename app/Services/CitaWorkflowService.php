@@ -34,7 +34,7 @@ class CitaWorkflowService
         return $evento;
     }
 
-    public function validarCupo(Slot $slot, Paciente $paciente, ?int $exceptoCita = null): void
+    public function validarCupo(Slot $slot, Paciente $paciente, ?int $exceptoCita = null, ?int $exceptoDerivacionCita = null): void
     {
         abort_unless($paciente->activo && $slot->estado === 'disponible', 422, 'El paciente o el turno no están disponibles.');
         abort_unless($slot->medico->estado === 'activo' && $slot->medico->user->estado === 'activo' && $slot->medico->especialidad->activo, 422, 'El médico o la especialidad no están disponibles.');
@@ -52,6 +52,22 @@ class CitaWorkflowService
             abort_unless($horario->activo && $slot->hora_inicio >= $horario->hora_inicio && $slot->hora_fin <= $horario->hora_fin, 422, 'La franja no está habilitada.');
             abort_if($horario->descanso_inicio && $slot->hora_inicio < $horario->descanso_fin && $slot->hora_fin > $horario->descanso_inicio, 422, 'El turno coincide con un descanso.');
         }
+
+        // Regla: Si el paciente ya tiene una ficha activa, no puede sacar otra ficha
+        $citaActiva = Cita::where('paciente_id', $paciente->id)
+            ->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])
+            ->when($exceptoCita, fn ($q) => $q->where('id', '!=', $exceptoCita))
+            ->when($exceptoDerivacionCita, fn ($q) => $q->where('id', '!=', $exceptoDerivacionCita))
+            ->with(['medico.user'])
+            ->first();
+
+        if ($citaActiva) {
+            $fechaFmt = $citaActiva->fecha ? $citaActiva->fecha->format('d/m/Y') : '';
+            $horaFmt = $citaActiva->hora ? substr($citaActiva->hora, 0, 5) : '';
+            $medicoNom = $citaActiva->medico?->user?->name ?? 'el especialista asignado';
+            abort(422, "El paciente ya cuenta con una ficha médica activa ({$citaActiva->codigo_ficha}) para el {$fechaFmt} a las {$horaFmt} con {$medicoNom}. No es posible sacar otra ficha mientras tenga una activa.");
+        }
+
         $ocupada = Cita::where('paciente_id', $paciente->id)->whereDate('fecha', $slot->fecha)
             ->whereNotIn('estado', ['cancelada', 'postergada', 'inasistencia'])
             ->when($exceptoCita, fn ($q) => $q->where('id', '!=', $exceptoCita))

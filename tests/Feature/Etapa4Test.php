@@ -524,4 +524,84 @@ class Etapa4Test extends TestCase
             'slot_id' => $this->slot->id,
         ]);
     }
+
+    /**
+     * Regla de negocio: Si un paciente ya tiene una ficha activa, no puede sacar otra ficha.
+     */
+    public function test_patient_with_active_appointment_cannot_book_another_appointment(): void
+    {
+        // 1. Reservar primera ficha activa (programada)
+        $primeraCita = Cita::create([
+            'codigo_ficha' => 'FCH-20261110-ACTIVA1',
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $this->slot->id,
+            'fecha' => $this->slot->fecha,
+            'hora' => $this->slot->hora_inicio,
+            'estado' => 'programada',
+        ]);
+        $this->slot->update(['estado' => 'reservado']);
+
+        // 2. Crear un segundo slot para otra fecha
+        $segundoSlot = Slot::create([
+            'medico_id' => $this->medico->id,
+            'fecha' => today()->addDays(3)->toDateString(),
+            'hora_inicio' => '10:00',
+            'hora_fin' => '10:15',
+            'estado' => 'disponible',
+        ]);
+
+        // 3. Intentar sacar una segunda ficha para el mismo paciente
+        $response = $this->actingAs($this->recepcionista)->post(route('citas.store'), [
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $segundoSlot->id,
+            'fecha' => $segundoSlot->fecha->toDateString(),
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertStringContainsString('ya cuenta con una ficha médica activa', $response->exception->getMessage());
+        $this->assertStringContainsString($primeraCita->codigo_ficha, $response->exception->getMessage());
+    }
+
+    /**
+     * Regla de negocio: Una vez concluida (atendida) o cancelada la cita activa, el paciente puede sacar una nueva ficha.
+     */
+    public function test_patient_can_book_new_appointment_after_previous_is_attended_or_canceled(): void
+    {
+        // 1. Crear una cita previa ya atendida
+        Cita::create([
+            'codigo_ficha' => 'FCH-20261110-ATENDIDA1',
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $this->slot->id,
+            'fecha' => $this->slot->fecha,
+            'hora' => $this->slot->hora_inicio,
+            'estado' => 'atendida',
+        ]);
+
+        // 2. Crear slot disponible para nueva cita en otra fecha
+        $nuevoSlot = Slot::create([
+            'medico_id' => $this->medico->id,
+            'fecha' => today()->addDays(4)->toDateString(),
+            'hora_inicio' => '11:00',
+            'hora_fin' => '11:15',
+            'estado' => 'disponible',
+        ]);
+
+        // 3. Sacar la nueva ficha debe permitirse
+        $response = $this->actingAs($this->recepcionista)->post(route('citas.store'), [
+            'paciente_id' => $this->paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $nuevoSlot->id,
+            'fecha' => $nuevoSlot->fecha->toDateString(),
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('citas', [
+            'paciente_id' => $this->paciente->id,
+            'slot_id' => $nuevoSlot->id,
+            'estado' => 'programada',
+        ]);
+    }
 }

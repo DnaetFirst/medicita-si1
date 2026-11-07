@@ -115,7 +115,7 @@
                                 <div style="margin-bottom: 1rem;">
                                     <label class="form-label">Nueva Contraseña *</label>
                                     <input type="password" name="password" class="form-input" required minlength="8" placeholder="••••••••">
-                                    <small style="color: var(--color-text-muted); font-size: 0.75rem;">Mayúscula, minúscula, número y símbolo (8+ caracteres).</small>
+                                    <small style="color: var(--color-text-muted); font-size: 0.75rem;">Mayúscula, minúscula, número y símbolo.</small>
                                 </div>
                                 <div style="margin-bottom: 1.5rem;">
                                     <label class="form-label">Confirmar Nueva Contraseña *</label>

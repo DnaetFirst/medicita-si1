@@ -71,14 +71,23 @@ class CitaWizardController extends Controller
                 ->get();
         }
 
+        $fichaActiva = null;
         if ($request->user()->isPaciente()) {
-            $pacientes = app(AccesoPacienteService::class)->pacientes($request->user())->where('activo', true)->get();
+            $pacientes = app(AccesoPacienteService::class)->pacientes($request->user())
+                ->where('activo', true)
+                ->with(['citas' => fn ($q) => $q->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])->with(['medico.user', 'medico.especialidad'])])
+                ->get();
             $pacientePreseleccionado = $selectedPacienteId ? $pacientes->firstWhere('id', (int) $selectedPacienteId) : $pacientes->first();
             abort_if($selectedPacienteId && ! $pacientePreseleccionado, 403);
             $selectedPacienteId = $pacientePreseleccionado?->id;
+            $fichaActiva = $pacientePreseleccionado?->citas?->first();
         } else {
-            $pacientes = Paciente::where('activo', true)->orderBy('nombres')->get();
-            $pacientePreseleccionado = $selectedPacienteId ? Paciente::find($selectedPacienteId) : null;
+            $pacientes = Paciente::where('activo', true)
+                ->with(['citas' => fn ($q) => $q->whereIn('estado', ['programada', 'confirmada', 'en_espera', 'en_atencion'])->with(['medico.user', 'medico.especialidad'])])
+                ->orderBy('nombres')
+                ->get();
+            $pacientePreseleccionado = $selectedPacienteId ? $pacientes->firstWhere('id', (int) $selectedPacienteId) : null;
+            $fichaActiva = $pacientePreseleccionado?->citas?->first();
         }
 
         return view('p4_citas.citas.wizard', [
@@ -87,6 +96,7 @@ class CitaWizardController extends Controller
             'medicos' => $medicos,
             'pacientes' => $pacientes,
             'pacientePreseleccionado' => $pacientePreseleccionado,
+            'fichaActiva' => $fichaActiva,
             'selectedEspecialidadId' => $selectedEspecialidadId,
             'selectedMedicoId' => $selectedMedicoId,
             'selectedFecha' => $selectedFecha,
@@ -286,12 +296,20 @@ class CitaWizardController extends Controller
                 }
             }
 
-            app(CitaWorkflowService::class)->validarCupo($slot, Paciente::findOrFail($pacienteId));
-
             $derivacion = $request->filled('derivacion_id') ? Derivacion::whereKey($request->integer('derivacion_id'))->lockForUpdate()->firstOrFail() : null;
             if ($derivacion) {
                 abort_unless($derivacion->atencion->historia->paciente_id === $pacienteId, 403);
                 abort_unless($derivacion->estado === 'emitida' && $derivacion->especialidad_id === $slot->medico->especialidad_id, 422, 'La derivación debe estar pendiente y corresponder a la especialidad seleccionada.');
+            }
+
+            app(CitaWorkflowService::class)->validarCupo(
+                $slot,
+                Paciente::findOrFail($pacienteId),
+                exceptoCita: null,
+                exceptoDerivacionCita: $derivacion?->atencion?->cita_id
+            );
+
+            if ($derivacion) {
                 $derivacion->update(['estado' => 'agendada']);
             }
 

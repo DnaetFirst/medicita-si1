@@ -171,9 +171,45 @@
                 Vincula el paciente a la cita o registra uno nuevo si es primera consulta
             </p>
 
+            <!-- Alerta si el paciente ya tiene una ficha activa -->
+            <div id="alertaFichaActiva" style="display: {{ $fichaActiva ? 'block' : 'none' }}; background: #fef2f2; border: 2px solid #ef4444; border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 0.85rem; align-items: flex-start;">
+                    <span style="font-size: 1.5rem; line-height: 1;">⛔</span>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 0.35rem 0; color: #991b1b; font-size: 1rem; font-weight: 700;">
+                            El paciente ya cuenta con una ficha médica activa
+                        </h4>
+                        <p id="alertaFichaActivaTexto" style="margin: 0 0 0.5rem 0; color: #7f1d1d; font-size: 0.875rem; line-height: 1.4;">
+                            @if($fichaActiva)
+                                Ya existe la ficha activa <strong>{{ $fichaActiva->codigo_ficha }}</strong> programada para el <strong>{{ $fichaActiva->fecha ? $fichaActiva->fecha->format('d/m/Y') : '' }}</strong> a las <strong>{{ substr($fichaActiva->hora ?? '', 0, 5) }}</strong> con <strong>{{ $fichaActiva->medico?->user?->name ?? 'el especialista asignado' }}</strong> ({{ $fichaActiva->medico?->especialidad?->nombre ?? '' }}).
+                            @endif
+                        </p>
+                        <div style="font-size: 0.8rem; color: #991b1b; background: rgba(239, 68, 68, 0.08); padding: 0.5rem 0.75rem; border-radius: 4px;">
+                            <strong>Regla de emisión de fichas:</strong> No es posible sacar otra ficha médica mientras exista una ficha activa en curso. Debe esperar a que concluya su atención o gestionar/reprogramar su cita existente.
+                        </div>
+                        @if(auth()->user()->isPaciente())
+                            <div style="margin-top: 0.75rem;">
+                                <a href="{{ route('citas.mis_citas') }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
+                                    &larr; Ver Mis Citas Activas
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
             @if(auth()->user()->isPaciente())
-                <label class="form-label">Paciente para quien se reserva</label>
-                <select name="paciente_id" class="form-input" required>@foreach($pacientes as $pac)<option value="{{ $pac->id }}" @selected(old('paciente_id', $selectedPacienteId) == $pac->id)>{{ $pac->nombre_completo }}</option>@endforeach</select>
+                <label class="form-label" style="font-weight: 700;">Paciente para quien se reserva</label>
+                <select name="paciente_id" id="selectPacienteRolPaciente" class="form-input" required onchange="cambioPacienteRolPaciente(this.value)">
+                    @foreach($pacientes as $pac)
+                        @php
+                            $activa = $pac->citas->first();
+                        @endphp
+                        <option value="{{ $pac->id }}" @selected(old('paciente_id', $selectedPacienteId) == $pac->id)>
+                            {{ $pac->nombre_completo }} {{ $activa ? '⚠️ (Ficha activa: ' . $activa->codigo_ficha . ')' : '' }}
+                        </option>
+                    @endforeach
+                </select>
             @else
                 <!-- Toggle nuevo / existente -->
                 <div style="margin-bottom: 1.25rem; display: flex; gap: 1.5rem; background: var(--color-surface-hover); padding: 0.75rem 1rem; border-radius: var(--radius-md);">
@@ -386,7 +422,7 @@
                 <button type="button" class="btn btn-secondary" onclick="avanzarPaso(3)">
                     &larr; Volver
                 </button>
-                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2.5rem; font-size: 1rem; box-shadow: 0 4px 14px rgba(13, 124, 124, 0.25);">
+                <button type="submit" id="btnConfirmarCita" class="btn btn-primary" style="padding: 0.75rem 2.5rem; font-size: 1rem; box-shadow: 0 4px 14px rgba(13, 124, 124, 0.25);">
                     Confirmar y Emitir Ficha Médica (CU8)
                 </button>
             </div>
@@ -685,6 +721,7 @@ function toggleTipoPaciente(tipo) {
             if (el) el.setAttribute('required', 'required');
         });
         toggleNuevoResponsableFields();
+        verificarFichaActiva(null); // Paciente nuevo no tiene ficha activa
     } else {
         if (seccionExistente) seccionExistente.style.display = 'block';
         if (seccionNuevo) seccionNuevo.style.display = 'none';
@@ -695,20 +732,82 @@ function toggleTipoPaciente(tipo) {
             const el = document.getElementById(id);
             if (el) el.removeAttribute('required');
         });
+
+        // Re-verificar paciente existente seleccionado
+        const currentId = selectPac && selectPac.value ? parseInt(selectPac.value) : null;
+        if (currentId) {
+            verificarFichaActiva(pacientesCatalogo.find(p => p.id === currentId));
+        } else {
+            verificarFichaActiva(null);
+        }
     }
 }
 
 const pacientesCatalogo = [
     @foreach($pacientes as $pac)
+    @php
+        $activa = $pac->citas->first();
+        $fichaData = $activa ? [
+            'codigo' => $activa->codigo_ficha,
+            'fecha' => $activa->fecha ? $activa->fecha->format('d/m/Y') : '',
+            'hora' => $activa->hora ? substr($activa->hora, 0, 5) : '',
+            'medico' => $activa->medico?->user?->name ?? 'el especialista asignado',
+            'especialidad' => $activa->medico?->especialidad?->nombre ?? '',
+            'estado' => $activa->estado,
+        ] : null;
+    @endphp
     {
         id: {{ $pac->id }},
         nombre: @json($pac->nombre_completo),
         ci: @json($pac->ci),
         telefono: @json($pac->telefono ?? ''),
-        label: @json($pac->nombre_completo . ' — CI: ' . $pac->ci . ($pac->telefono ? ' (Cel: ' . $pac->telefono . ')' : ''))
+        label: @json($pac->nombre_completo . ' — CI: ' . $pac->ci . ($pac->telefono ? ' (Cel: ' . $pac->telefono . ')' : '')),
+        tiene_ficha_activa: {{ $activa ? 'true' : 'false' }},
+        ficha_info: @json($fichaData)
     },
     @endforeach
 ];
+
+let pacienteBloqueadoPorFichaActiva = false;
+let mensajeBloqueoFicha = '';
+
+function verificarFichaActiva(p) {
+    const alerta = document.getElementById('alertaFichaActiva');
+    const alertaTexto = document.getElementById('alertaFichaActivaTexto');
+    const btnSubmit = document.getElementById('btnConfirmarCita');
+
+    if (p && p.tiene_ficha_activa && p.ficha_info) {
+        pacienteBloqueadoPorFichaActiva = true;
+        mensajeBloqueoFicha = `El paciente ${p.nombre} ya cuenta con una ficha médica activa (${p.ficha_info.codigo}) para el ${p.ficha_info.fecha} a las ${p.ficha_info.hora} con ${p.ficha_info.medico} (${p.ficha_info.especialidad}). No es posible emitir otra ficha mientras tenga una activa.`;
+
+        if (alerta && alertaTexto) {
+            alertaTexto.innerHTML = `El paciente <strong>${escapeHtml(p.nombre)}</strong> ya cuenta con la ficha médica activa <strong>${escapeHtml(p.ficha_info.codigo)}</strong> programada para el <strong>${escapeHtml(p.ficha_info.fecha)}</strong> a las <strong>${escapeHtml(p.ficha_info.hora)}</strong> con <strong>${escapeHtml(p.ficha_info.medico)}</strong> (${escapeHtml(p.ficha_info.especialidad)}).`;
+            alerta.style.display = 'block';
+        }
+
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.style.opacity = '0.5';
+            btnSubmit.style.cursor = 'not-allowed';
+            btnSubmit.title = 'No es posible emitir la ficha: el paciente ya cuenta con una ficha médica activa.';
+        }
+    } else {
+        pacienteBloqueadoPorFichaActiva = false;
+        mensajeBloqueoFicha = '';
+        if (alerta) alerta.style.display = 'none';
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.style.opacity = '1';
+            btnSubmit.style.cursor = 'pointer';
+            btnSubmit.title = '';
+        }
+    }
+}
+
+function cambioPacienteRolPaciente(id) {
+    const p = pacientesCatalogo.find(item => item.id == id);
+    verificarFichaActiva(p);
+}
 
 const inputBuscar = document.getElementById('inputBuscarPaciente');
 const dropdown = document.getElementById('dropdownPacientes');
@@ -734,7 +833,10 @@ function renderDropdown(items) {
                     <strong style="color: var(--color-primary); font-size: 0.9rem;">${escapeHtml(p.nombre)}</strong>
                     <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-left: 0.4rem;">— CI: ${escapeHtml(p.ci)}</span>
                 </div>
-                ${p.telefono ? `<span style="font-size: 0.75rem; background: var(--color-surface-hover); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--color-text-muted);">Cel: ${escapeHtml(p.telefono)}</span>` : ''}
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    ${p.tiene_ficha_activa ? `<span style="font-size: 0.72rem; background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; border: 1px solid #fecaca;">⛔ Ficha Activa: ${escapeHtml(p.ficha_info.codigo)}</span>` : ''}
+                    ${p.telefono ? `<span style="font-size: 0.75rem; background: var(--color-surface-hover); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--color-text-muted);">Cel: ${escapeHtml(p.telefono)}</span>` : ''}
+                </div>
             </div>
         `).join('');
 
@@ -768,6 +870,7 @@ if (inputBuscar) {
         if (selectPaciente) selectPaciente.value = '';
         if (infoBadge) infoBadge.style.display = 'none';
         if (btnLimpiar) btnLimpiar.style.display = inputBuscar.value ? 'block' : 'none';
+        verificarFichaActiva(null);
         renderDropdown(filtrarPacientes(inputBuscar.value));
     });
 
@@ -787,8 +890,13 @@ function seleccionarPacienteItem(id) {
     if (btnLimpiar) btnLimpiar.style.display = 'block';
     if (infoBadge) {
         infoBadge.style.display = 'flex';
-        if (lblVinculado) lblVinculado.innerText = `${p.nombre} (CI: ${p.ci})`;
+        if (lblVinculado) {
+            lblVinculado.innerHTML = p.tiene_ficha_activa 
+                ? `${escapeHtml(p.nombre)} (CI: ${escapeHtml(p.ci)}) <span style="color: #991b1b; font-weight: 700; margin-left: 0.5rem;">[⛔ Ficha Activa: ${escapeHtml(p.ficha_info.codigo)}]</span>`
+                : `${escapeHtml(p.nombre)} (CI: ${escapeHtml(p.ci)})`;
+        }
     }
+    verificarFichaActiva(p);
 }
 
 function limpiarSeleccionPaciente() {
@@ -799,12 +907,19 @@ function limpiarSeleccionPaciente() {
     }
     if (btnLimpiar) btnLimpiar.style.display = 'none';
     if (infoBadge) infoBadge.style.display = 'none';
+    verificarFichaActiva(null);
     renderDropdown(pacientesCatalogo.slice(0, 30));
 }
 
 const wizardFormElem = document.getElementById('wizardForm');
 if (wizardFormElem) {
     wizardFormElem.addEventListener('submit', function(e) {
+        if (pacienteBloqueadoPorFichaActiva) {
+            alert(mensajeBloqueoFicha || 'No es posible emitir otra ficha porque el paciente ya tiene una ficha activa.');
+            e.preventDefault();
+            return false;
+        }
+
         const crearNuevo = document.getElementById('crearPacienteNuevo');
         if (crearNuevo && crearNuevo.value === '0') {
             const selectPac = document.getElementById('selectPaciente');
@@ -817,6 +932,17 @@ if (wizardFormElem) {
         }
     });
 }
+
+// Inicialización de ficha activa si hay paciente preseleccionado
+document.addEventListener('DOMContentLoaded', function() {
+    const preselectedId = {{ $selectedPacienteId ? (int)$selectedPacienteId : 'null' }};
+    if (preselectedId) {
+        const p = pacientesCatalogo.find(item => item.id === preselectedId);
+        if (p) {
+            verificarFichaActiva(p);
+        }
+    }
+});
 
 function actualizarResumenFinal() {
     document.getElementById('lblConfEsp').innerText = selectedEspName;
