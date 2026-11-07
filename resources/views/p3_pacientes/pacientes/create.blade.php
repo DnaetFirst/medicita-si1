@@ -96,8 +96,9 @@
                 <input type="text" name="telefono" class="form-input" required value="{{ old('telefono') }}" placeholder="Ej. 77012345">
             </div>
             <div>
-                <label class="form-label">Correo Electrónico</label>
-                <input type="email" name="email" class="form-input" value="{{ old('email') }}" placeholder="paciente@correo.com">
+                <label class="form-label">Correo Electrónico *</label>
+                <input type="email" name="email" class="form-input" required value="{{ old('email') }}" placeholder="paciente@correo.com">
+                <small style="color: var(--color-text-muted); font-size: 0.75rem;">Se utilizará para la cuenta de usuario del paciente.</small>
             </div>
         </div>
 

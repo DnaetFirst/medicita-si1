@@ -1,20 +1,20 @@
-# HANDOFF — Patient User Accounts, CI Login & Guardian Data Safety
+# HANDOFF — Patient Email Requirement, Password Complexity & In-Place Patient Search
 
 ## Completed
-- Guaranteed all patients have linked `User` accounts with role `paciente` across standard creation and appointment wizard.
-- Set initial password to patient CI with `debe_cambiar_password` flag and forced security prompt on login.
-- Updated authentication to accept either email or CI for login credentials.
-- Enabled dual-role support for guardians who are also patients (`AccesoPacienteService`).
-- Hardened guardian revocation to preserve patient history, appointments, and lab results without data loss.
-- Added comprehensive feature tests in `tests/Feature/Etapa4Test.php` (all 146 project tests passing).
+- Required email for new patients across both patient creation forms and inline appointment wizard registration.
+- Excluded role `paciente` from user registration (`/usuarios/create` and `UsuarioController@store`).
+- Enforced standard password complexity (min 8 chars, uppercase, lowercase, number, special char) via Laravel Password rule (excluding initial patient CI password).
+- Added in-place searchable patient dropdown in appointment wizard without adding extra fields.
+- Verified test suite (148 tests passing, 730 assertions) and formatted with Pint.
 
 ## Modified Files
-- `database/migrations/2026_11_07_184025_add_debe_cambiar_password_to_users_table.php`
-- `app/Models/User.php`, `app/Http/Controllers/P1_Usuarios/AuthController.php`
-- `app/Http/Controllers/P3_Pacientes/PacienteController.php`, `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `routes/web.php`, `resources/views/layouts/app.blade.php`, `resources/views/p1_auth/login.blade.php`
-- `resources/views/p3_pacientes/pacientes/show.blade.php`, `tests/Feature/Etapa4Test.php`, `CONTEXT.md`, `HANDOFF.md`
+- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`, `app/Http/Controllers/P1_Usuarios/AuthController.php`
+- `app/Http/Controllers/P2_MedicosAgendas/MedicoController.php`, `app/Http/Controllers/P3_Pacientes/PacienteController.php`
+- `app/Http/Controllers/P4_Citas/CitaWizardController.php`
+- `resources/views/p4_citas/citas/wizard.blade.php`, `resources/views/p3_pacientes/pacientes/create.blade.php`
+- `resources/views/p1_auth/usuarios/create.blade.php`, `resources/views/p1_auth/usuarios/edit.blade.php`
+- `resources/views/layouts/app.blade.php`, `tests/Feature/Etapa4Test.php`, `tests/Feature/WorkflowRegressionTest.php`
 
 ## Next Step / Pending
-- Commit and push to GitHub `main` to trigger automated Render deployment (`render-start.sh` will run migrations on Neon PostgreSQL).
-- Verify CI login and password change on production (`https://medicita-si1-defensa.onrender.com`).
+- Commit and push changes to `main` for automated Render deployment.
+- Verify appointment booking search and new user creation on live production.

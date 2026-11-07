@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\P1\Rol;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
@@ -85,6 +86,7 @@ class Etapa4Test extends TestCase
             'genero' => 'Femenino',
             'grupo_sanguineo' => 'A+',
             'telefono' => '72030405',
+            'email' => 'valeria.roca@medicita.com',
             'tiene_responsable' => '1',
             'resp_ci' => '3210987',
             'resp_nombres' => 'Claudia Justiniano (Madre)',
@@ -362,6 +364,7 @@ class Etapa4Test extends TestCase
             'fecha_nacimiento' => '1995-04-12',
             'genero' => 'Masculino',
             'telefono' => '78912345',
+            'email' => 'marcelo.claure@medicita.com',
         ];
 
         $response = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $data);
@@ -415,5 +418,54 @@ class Etapa4Test extends TestCase
         $this->assertFalse($responsable->fresh()->activo);
         $this->assertNotNull($this->paciente->fresh()->user_id);
         $this->assertEquals('activo', $this->paciente->fresh()->user->estado);
+    }
+
+    /**
+     * CU2: Quitar rol paciente en creación de usuarios y exigir estándar de seguridad en contraseñas.
+     */
+    public function test_user_registration_rejects_patient_role_and_enforces_password_complexity(): void
+    {
+        $rolPaciente = Rol::where('slug', 'paciente')->first();
+        $rolAdmin = Rol::where('slug', 'admin')->first();
+
+        // 1. Intentar crear rol paciente desde /usuarios debe ser rechazado
+        $responseRolPaciente = $this->actingAs($this->admin)->post(route('usuarios.store'), [
+            'name' => 'Intento Paciente',
+            'ci' => '99887711',
+            'email' => 'intento.paciente@medicita.com',
+            'rol_id' => $rolPaciente->id,
+            'password' => 'PasswordSegura123!',
+            'password_confirmation' => 'PasswordSegura123!',
+            'estado' => 'activo',
+        ]);
+        $responseRolPaciente->assertSessionHasErrors('rol_id');
+
+        // 2. Intentar registrar con contraseña débil (sin números ni símbolos)
+        $responsePassDebil = $this->actingAs($this->admin)->post(route('usuarios.store'), [
+            'name' => 'Usuario Clave Debil',
+            'ci' => '99887722',
+            'email' => 'clave.debil@medicita.com',
+            'rol_id' => $rolAdmin->id,
+            'password' => 'sololetrasminusculas',
+            'password_confirmation' => 'sololetrasminusculas',
+            'estado' => 'activo',
+        ]);
+        $responsePassDebil->assertSessionHasErrors('password');
+    }
+
+    /**
+     * CU7: La creación de paciente exige sí o sí correo electrónico para vincular su cuenta de usuario.
+     */
+    public function test_patient_registration_requires_email(): void
+    {
+        $response = $this->actingAs($this->recepcionista)->post(route('pacientes.store'), [
+            'ci' => '44556677',
+            'nombres' => 'Sin',
+            'apellidos' => 'Correo',
+            'fecha_nacimiento' => '1998-05-10',
+            'telefono' => '78900011',
+        ]);
+
+        $response->assertSessionHasErrors('email');
     }
 }

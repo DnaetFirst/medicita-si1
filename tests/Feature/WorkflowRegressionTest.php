@@ -89,6 +89,7 @@ class WorkflowRegressionTest extends TestCase
         $this->post(route('citas.store'), array_merge($this->reservation(), [
             'crear_paciente_nuevo' => 1, 'nuevo_ci' => 'NO-ORPHAN', 'nuevo_nombres' => 'Nuevo',
             'nuevo_apellidos' => 'Paciente', 'nuevo_fecha_nacimiento' => '2000-01-01', 'nuevo_telefono' => '70000001',
+            'nuevo_email' => 'no-orphan@example.com',
         ]))->assertUnprocessable();
         $this->assertDatabaseMissing('pacientes', ['ci' => 'NO-ORPHAN']);
     }
@@ -98,6 +99,7 @@ class WorkflowRegressionTest extends TestCase
         $this->post(route('citas.store'), array_merge($this->reservation(), [
             'crear_paciente_nuevo' => 1, 'nuevo_ci' => 'NEW-PATIENT', 'nuevo_nombres' => 'Nuevo',
             'nuevo_apellidos' => 'Paciente', 'nuevo_fecha_nacimiento' => '2000-01-01', 'nuevo_telefono' => '70000001',
+            'nuevo_email' => 'new-patient@example.com',
         ]))->assertRedirect();
         $patient = Paciente::where('ci', 'NEW-PATIENT')->firstOrFail();
         $this->assertDatabaseHas('citas', ['paciente_id' => $patient->id, 'slot_id' => $this->slot->id]);

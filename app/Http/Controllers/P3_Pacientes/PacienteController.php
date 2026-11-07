@@ -84,7 +84,7 @@ class PacienteController extends Controller
             'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
             'grupo_sanguineo' => 'nullable|string|max:10',
             'telefono' => 'required|string|max:20',
-            'email' => 'nullable|email|max:150|unique:users,email',
+            'email' => 'required|email|max:150|unique:users,email',
             'direccion' => 'nullable|string',
             'contacto_emergencia_nombre' => 'nullable|string|max:100',
             'contacto_emergencia_telefono' => 'nullable|string|max:20',
@@ -104,7 +104,9 @@ class PacienteController extends Controller
             'fecha_nacimiento.required' => 'La fecha de nacimiento es obligatoria.',
             'fecha_nacimiento.before' => 'La fecha de nacimiento debe ser anterior al día de hoy.',
             'telefono.required' => 'El número de teléfono/celular de contacto es obligatorio.',
-            'email.unique' => 'Este correo ya está registrado para otro usuario del sistema.',
+            'email.required' => 'El correo electrónico es obligatorio para registrar al paciente y crear su cuenta de usuario.',
+            'email.email' => 'El formato del correo electrónico no es válido.',
+            'email.unique' => 'Este correo electrónico ya está registrado para otro usuario del sistema.',
             'resp_ci.required_if' => 'El CI del responsable legal es obligatorio.',
             'resp_vigencia.after' => 'La fecha de vigencia de la autorización debe ser posterior a hoy.',
         ]);
@@ -114,14 +116,7 @@ class PacienteController extends Controller
 
         // Contraseña inicial: Número de CI (carnet de identidad) para todo paciente
         $passwordInicial = $validated['ci'];
-
-        // Determinar email de acceso
-        $emailAcceso = $validated['email'] ?? null;
-        $emailGenerado = false;
-        if (! $emailAcceso) {
-            $emailAcceso = 'pac.'.$validated['ci'].'@medicita.local';
-            $emailGenerado = true;
-        }
+        $emailAcceso = $validated['email'];
 
         [$paciente, $usuario] = DB::transaction(function () use ($validated, $emailAcceso, $passwordInicial, $rolPaciente) {
             // 1. Crear o recuperar cuenta de acceso PAC con CI como contraseña inicial

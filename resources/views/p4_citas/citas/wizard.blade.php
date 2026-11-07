@@ -188,16 +188,35 @@
                 </div>
 
                 <!-- Paciente Existente -->
-                <div id="seccionPacienteExistente" style="margin-bottom: 1.5rem;">
-                    <label class="form-label">Selecciona el Paciente *</label>
-                    <select name="paciente_id" id="selectPaciente" class="form-input" style="width: 100%; font-size: 0.95rem;">
-                        <option value="">Selecciona paciente por nombre o C.I...</option>
-                        @foreach($pacientes as $pac)
-                            <option value="{{ $pac->id }}" {{ ($selectedPacienteId == $pac->id) ? 'selected' : '' }}>
-                                {{ $pac->nombre_completo }} — CI: {{ $pac->ci }} (Cel: {{ $pac->telefono }})
-                            </option>
-                        @endforeach
-                    </select>
+                <div id="seccionPacienteExistente" style="margin-bottom: 1.5rem; position: relative;">
+                    <label class="form-label" for="inputBuscarPaciente">Selecciona o Busca el Paciente *</label>
+                    <div style="position: relative;">
+                        <input type="text"
+                               id="inputBuscarPaciente"
+                               class="form-input"
+                               placeholder="Escribe el nombre, CI o teléfono del paciente..."
+                               autocomplete="off"
+                               style="width: 100%; font-size: 0.95rem; padding-right: 2.5rem;"
+                               value="{{ $pacientePreseleccionado ? $pacientePreseleccionado->nombre_completo . ' — CI: ' . $pacientePreseleccionado->ci : '' }}">
+                        
+                        <button type="button"
+                                id="btnLimpiarPaciente"
+                                onclick="limpiarSeleccionPaciente()"
+                                style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.25rem; color: var(--color-text-muted); cursor: pointer; display: {{ $pacientePreseleccionado ? 'block' : 'none' }}; line-height: 1;"
+                                title="Borrar y buscar otro paciente">&times;</button>
+                        
+                        <input type="hidden" name="paciente_id" id="selectPaciente" value="{{ old('paciente_id', $selectedPacienteId) }}">
+
+                        <!-- Dropdown de resultados filtrados -->
+                        <div id="dropdownPacientes" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 250px; overflow-y: auto; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000;">
+                        </div>
+                    </div>
+                    <small style="color: var(--color-text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+                        Escribe en este mismo campo el nombre, apellido, CI o celular para filtrar la lista instantáneamente.
+                    </small>
+                    <div id="pacienteSeleccionadoInfo" style="display: {{ $pacientePreseleccionado ? 'flex' : 'none' }}; margin-top: 0.5rem; font-size: 0.85rem; color: #065f46; background: #ecfdf5; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid #a7f3d0; align-items: center; justify-content: space-between;">
+                        <span>✓ Paciente vinculado: <strong id="lblPacienteVinculado">{{ $pacientePreseleccionado ? $pacientePreseleccionado->nombre_completo . ' (CI: ' . $pacientePreseleccionado->ci . ')' : '' }}</strong></span>
+                    </div>
                 </div>
 
                 <!-- Nuevo Paciente Inline -->
@@ -207,27 +226,36 @@
                     <div class="grid-2" style="margin-bottom: 0.75rem;">
                         <div>
                             <label class="form-label">Cédula de Identidad (CI) *</label>
-                            <input type="text" name="nuevo_ci" class="form-input" placeholder="Ej. 9988776">
+                            <input type="text" name="nuevo_ci" id="nuevo_ci" class="form-input" placeholder="Ej. 9988776" value="{{ old('nuevo_ci') }}">
                         </div>
                         <div>
                             <label class="form-label">Fecha de Nacimiento *</label>
-                            <input type="date" name="nuevo_fecha_nacimiento" class="form-input" max="{{ date('Y-m-d') }}">
+                            <input type="date" name="nuevo_fecha_nacimiento" id="nuevo_fecha_nacimiento" class="form-input" max="{{ date('Y-m-d') }}" value="{{ old('nuevo_fecha_nacimiento') }}">
                         </div>
                     </div>
                     <div class="grid-2" style="margin-bottom: 0.75rem;">
                         <div>
                             <label class="form-label">Nombres *</label>
-                            <input type="text" name="nuevo_nombres" class="form-input" placeholder="Ej. Ana Lucía">
+                            <input type="text" name="nuevo_nombres" id="nuevo_nombres" class="form-input" placeholder="Ej. Ana Lucía" value="{{ old('nuevo_nombres') }}">
                         </div>
                         <div>
                             <label class="form-label">Apellidos *</label>
-                            <input type="text" name="nuevo_apellidos" class="form-input" placeholder="Ej. Paz Terrazas">
+                            <input type="text" name="nuevo_apellidos" id="nuevo_apellidos" class="form-input" placeholder="Ej. Paz Terrazas" value="{{ old('nuevo_apellidos') }}">
                         </div>
                     </div>
-                    <div>
-                        <label class="form-label">Teléfono de Contacto *</label>
-                        <input type="text" name="nuevo_telefono" class="form-input" placeholder="Ej. 78012345">
+                    <div class="grid-2" style="margin-bottom: 0.75rem;">
+                        <div>
+                            <label class="form-label">Teléfono de Contacto *</label>
+                            <input type="text" name="nuevo_telefono" id="nuevo_telefono" class="form-input" placeholder="Ej. 78012345" value="{{ old('nuevo_telefono') }}">
+                        </div>
+                        <div>
+                            <label class="form-label">Correo Electrónico *</label>
+                            <input type="email" name="nuevo_email" id="nuevo_email" class="form-input" placeholder="paciente@correo.com" value="{{ old('nuevo_email') }}">
+                        </div>
                     </div>
+                    <small style="color: var(--color-text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                        Se creará automáticamente la cuenta de usuario del paciente con su correo y su CI como contraseña inicial.
+                    </small>
                 </div>
             @endif
 
@@ -517,17 +545,154 @@ function seleccionarSlot(id, hora, btnElem) {
 }
 
 function toggleTipoPaciente(tipo) {
+    const seccionExistente = document.getElementById('seccionPacienteExistente');
+    const seccionNuevo = document.getElementById('seccionPacienteNuevo');
+    const crearNuevo = document.getElementById('crearPacienteNuevo');
+    const selectPac = document.getElementById('selectPaciente');
+    const inputBuscar = document.getElementById('inputBuscarPaciente');
+
     if (tipo === 'nuevo') {
-        document.getElementById('seccionPacienteExistente').style.display = 'none';
-        document.getElementById('seccionPacienteNuevo').style.display = 'block';
-        document.getElementById('crearPacienteNuevo').value = '1';
-        document.getElementById('selectPaciente').removeAttribute('required');
+        if (seccionExistente) seccionExistente.style.display = 'none';
+        if (seccionNuevo) seccionNuevo.style.display = 'block';
+        if (crearNuevo) crearNuevo.value = '1';
+        if (selectPac) selectPac.removeAttribute('required');
+        if (inputBuscar) inputBuscar.removeAttribute('required');
+
+        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.setAttribute('required', 'required');
+        });
     } else {
-        document.getElementById('seccionPacienteExistente').style.display = 'block';
-        document.getElementById('seccionPacienteNuevo').style.display = 'none';
-        document.getElementById('crearPacienteNuevo').value = '0';
-        document.getElementById('selectPaciente').setAttribute('required', 'required');
+        if (seccionExistente) seccionExistente.style.display = 'block';
+        if (seccionNuevo) seccionNuevo.style.display = 'none';
+        if (crearNuevo) crearNuevo.value = '0';
+        if (selectPac) selectPac.setAttribute('required', 'required');
+
+        ['nuevo_ci', 'nuevo_nombres', 'nuevo_apellidos', 'nuevo_fecha_nacimiento', 'nuevo_telefono', 'nuevo_email'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.removeAttribute('required');
+        });
     }
+}
+
+const pacientesCatalogo = [
+    @foreach($pacientes as $pac)
+    {
+        id: {{ $pac->id }},
+        nombre: @json($pac->nombre_completo),
+        ci: @json($pac->ci),
+        telefono: @json($pac->telefono ?? ''),
+        label: @json($pac->nombre_completo . ' — CI: ' . $pac->ci . ($pac->telefono ? ' (Cel: ' . $pac->telefono . ')' : ''))
+    },
+    @endforeach
+];
+
+const inputBuscar = document.getElementById('inputBuscarPaciente');
+const dropdown = document.getElementById('dropdownPacientes');
+const selectPaciente = document.getElementById('selectPaciente');
+const btnLimpiar = document.getElementById('btnLimpiarPaciente');
+const infoBadge = document.getElementById('pacienteSeleccionadoInfo');
+const lblVinculado = document.getElementById('lblPacienteVinculado');
+
+function escapeHtml(str) {
+    return (str || '').replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+    });
+}
+
+function renderDropdown(items) {
+    if (!dropdown) return;
+    if (items.length === 0) {
+        dropdown.innerHTML = '<div style="padding: 0.85rem; text-align: center; color: var(--color-text-muted); font-size: 0.85rem;">No se encontraron pacientes que coincidan.</div>';
+    } else {
+        dropdown.innerHTML = items.map(p => `
+            <div class="paciente-dropdown-item" onclick="seleccionarPacienteItem(${p.id})" style="padding: 0.7rem 0.9rem; cursor: pointer; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; transition: background 0.15s ease;">
+                <div>
+                    <strong style="color: var(--color-primary); font-size: 0.9rem;">${escapeHtml(p.nombre)}</strong>
+                    <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-left: 0.4rem;">— CI: ${escapeHtml(p.ci)}</span>
+                </div>
+                ${p.telefono ? `<span style="font-size: 0.75rem; background: var(--color-surface-hover); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--color-text-muted);">Cel: ${escapeHtml(p.telefono)}</span>` : ''}
+            </div>
+        `).join('');
+
+        dropdown.querySelectorAll('.paciente-dropdown-item').forEach(el => {
+            el.addEventListener('mouseenter', () => el.style.background = 'rgba(13,124,124,0.06)');
+            el.addEventListener('mouseleave', () => el.style.background = 'transparent');
+        });
+    }
+    dropdown.style.display = 'block';
+}
+
+function filtrarPacientes(query) {
+    const term = (query || '').toLowerCase().trim();
+    if (!term) {
+        return pacientesCatalogo.slice(0, 30);
+    }
+    return pacientesCatalogo.filter(p => 
+        p.nombre.toLowerCase().includes(term) ||
+        p.ci.toLowerCase().includes(term) ||
+        p.telefono.toLowerCase().includes(term)
+    );
+}
+
+if (inputBuscar) {
+    inputBuscar.addEventListener('focus', () => {
+        const query = (selectPaciente && selectPaciente.value) ? '' : inputBuscar.value;
+        renderDropdown(filtrarPacientes(query));
+    });
+
+    inputBuscar.addEventListener('input', () => {
+        if (selectPaciente) selectPaciente.value = '';
+        if (infoBadge) infoBadge.style.display = 'none';
+        if (btnLimpiar) btnLimpiar.style.display = inputBuscar.value ? 'block' : 'none';
+        renderDropdown(filtrarPacientes(inputBuscar.value));
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!inputBuscar.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+function seleccionarPacienteItem(id) {
+    const p = pacientesCatalogo.find(item => item.id === id);
+    if (!p) return;
+    if (selectPaciente) selectPaciente.value = p.id;
+    if (inputBuscar) inputBuscar.value = p.label;
+    if (dropdown) dropdown.style.display = 'none';
+    if (btnLimpiar) btnLimpiar.style.display = 'block';
+    if (infoBadge) {
+        infoBadge.style.display = 'flex';
+        if (lblVinculado) lblVinculado.innerText = `${p.nombre} (CI: ${p.ci})`;
+    }
+}
+
+function limpiarSeleccionPaciente() {
+    if (selectPaciente) selectPaciente.value = '';
+    if (inputBuscar) {
+        inputBuscar.value = '';
+        inputBuscar.focus();
+    }
+    if (btnLimpiar) btnLimpiar.style.display = 'none';
+    if (infoBadge) infoBadge.style.display = 'none';
+    renderDropdown(pacientesCatalogo.slice(0, 30));
+}
+
+const wizardFormElem = document.getElementById('wizardForm');
+if (wizardFormElem) {
+    wizardFormElem.addEventListener('submit', function(e) {
+        const crearNuevo = document.getElementById('crearPacienteNuevo');
+        if (crearNuevo && crearNuevo.value === '0') {
+            const selectPac = document.getElementById('selectPaciente');
+            if (selectPac && !selectPac.value) {
+                alert('Por favor selecciona o busca un paciente de la lista en el campo de paciente.');
+                if (inputBuscar) inputBuscar.focus();
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
 }
 
 function actualizarResumenFinal() {

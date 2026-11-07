@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class MedicoController extends Controller
@@ -88,7 +89,7 @@ class MedicoController extends Controller
             'ci' => 'required|string|max:20|unique:users,ci',
             'email' => 'required|email|max:150|unique:users,email',
             'telefono' => 'nullable|string|max:20',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'especialidad_id' => 'required|exists:especialidades,id',
             'nro_registro_medico' => 'required|string|max:50|unique:medicos,nro_registro_medico',
             'biografia' => 'nullable|string',
@@ -191,7 +192,7 @@ class MedicoController extends Controller
             'ci' => ['required', 'string', 'max:20', Rule::unique('users', 'ci')->ignore($medico->user_id)],
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($medico->user_id)],
             'telefono' => 'nullable|string|max:20',
-            'password' => 'nullable|string|min:8|confirmed',
+            'password' => ['nullable', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'especialidad_id' => 'required|exists:especialidades,id',
             'nro_registro_medico' => ['required', 'string', 'max:50', Rule::unique('medicos', 'nro_registro_medico')->ignore($medico->id)],
             'biografia' => 'nullable|string',

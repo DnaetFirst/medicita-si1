@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class UsuarioController extends Controller
@@ -63,7 +64,7 @@ class UsuarioController extends Controller
      */
     public function create(): View
     {
-        $roles = Rol::where('activo', true)->get();
+        $roles = Rol::where('activo', true)->where('slug', '!=', 'paciente')->get();
 
         return view('p1_auth.usuarios.create', [
             'roles' => $roles,
@@ -81,16 +82,20 @@ class UsuarioController extends Controller
             'name' => 'required|string|max:150',
             'ci' => 'required|string|max:20|unique:users,ci',
             'email' => 'required|email|max:150|unique:users,email',
-            'rol_id' => 'required|exists:roles,id',
+            'rol_id' => [
+                'required',
+                Rule::exists('roles', 'id')->where('activo', true)->whereNot('slug', 'paciente'),
+            ],
             'telefono' => 'nullable|string|max:20',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'estado' => 'required|in:activo,inactivo',
         ], [
             'name.required' => 'El nombre completo es obligatorio.',
             'ci.unique' => 'Ya existe un usuario registrado con esta Cédula de Identidad.',
             'email.unique' => 'Este correo electrónico ya se encuentra registrado.',
             'rol_id.required' => 'Debes asignar un rol al usuario.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'rol_id.exists' => 'El rol seleccionado no es válido. Los pacientes deben registrarse desde el módulo de Pacientes con su ficha clínica.',
+            'password.required' => 'La contraseña es obligatoria.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
         ]);
 
@@ -139,8 +144,10 @@ class UsuarioController extends Controller
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($usuario->id)],
             'rol_id' => 'required|exists:roles,id',
             'telefono' => 'nullable|string|max:20',
-            'password' => 'nullable|string|min:8|confirmed',
+            'password' => ['nullable', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'estado' => 'required|in:activo,inactivo',
+        ], [
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
         ]);
 
         $data = [

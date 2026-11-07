@@ -113,12 +113,13 @@
                             <form method="POST" action="{{ route('perfil.password') }}">
                                 @csrf
                                 <div style="margin-bottom: 1rem;">
-                                    <label class="form-label">Nueva Contraseña (mínimo 6 caracteres)</label>
-                                    <input type="password" name="password" class="form-input" required minlength="6" placeholder="••••••••">
+                                    <label class="form-label">Nueva Contraseña *</label>
+                                    <input type="password" name="password" class="form-input" required minlength="8" placeholder="••••••••">
+                                    <small style="color: var(--color-text-muted); font-size: 0.75rem;">Mínimo 8 caracteres, al menos una mayúscula, una minúscula, un número y un símbolo especial (@$!%*?&).</small>
                                 </div>
                                 <div style="margin-bottom: 1.5rem;">
-                                    <label class="form-label">Confirmar Nueva Contraseña</label>
-                                    <input type="password" name="password_confirmation" class="form-input" required minlength="6" placeholder="••••••••">
+                                    <label class="form-label">Confirmar Nueva Contraseña *</label>
+                                    <input type="password" name="password_confirmation" class="form-input" required minlength="8" placeholder="••••••••">
                                 </div>
                                 <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
                                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCambioPassword').style.display = 'none'">Cancelar</button>

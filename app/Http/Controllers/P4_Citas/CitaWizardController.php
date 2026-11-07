@@ -117,11 +117,16 @@ class CitaWizardController extends Controller
                     'nuevo_apellidos' => 'required|string|max:100',
                     'nuevo_fecha_nacimiento' => 'required|date|before:today',
                     'nuevo_telefono' => 'required|string|max:20',
+                    'nuevo_email' => 'required|email|max:150|unique:users,email',
                 ], [
                     'nuevo_ci.unique' => 'Ya existe un paciente registrado con este número de CI.',
                     'nuevo_nombres.required' => 'El nombre del paciente es obligatorio.',
                     'nuevo_apellidos.required' => 'El apellido del paciente es obligatorio.',
+                    'nuevo_fecha_nacimiento.required' => 'La fecha de nacimiento es obligatoria.',
                     'nuevo_telefono.required' => 'El teléfono de contacto es obligatorio.',
+                    'nuevo_email.required' => 'El correo electrónico es obligatorio para registrar al paciente y crear su cuenta.',
+                    'nuevo_email.email' => 'El formato del correo electrónico no es válido.',
+                    'nuevo_email.unique' => 'Este correo electrónico ya está registrado para otro usuario.',
                 ]);
             } else {
                 $request->validate([
@@ -181,9 +186,7 @@ class CitaWizardController extends Controller
                 $pacienteId = $request->integer('paciente_id');
                 if ($validatedPaciente !== null) {
                     $rolPaciente = Rol::where('slug', 'paciente')->first();
-                    $emailUser = ! empty($validatedPaciente['nuevo_email'])
-                        ? $validatedPaciente['nuevo_email']
-                        : 'pac.'.$validatedPaciente['nuevo_ci'].'@medicita.local';
+                    $emailUser = $validatedPaciente['nuevo_email'];
 
                     $usuario = User::firstOrCreate(
                         ['ci' => $validatedPaciente['nuevo_ci']],
