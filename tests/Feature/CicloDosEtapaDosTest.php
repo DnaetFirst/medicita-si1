@@ -331,4 +331,29 @@ class CicloDosEtapaDosTest extends TestCase
         $this->assertNotNull($oferta2);
         $this->assertSame($slot->id, $oferta2->slot_id);
     }
+
+    public function test_doctor_cannot_view_or_access_waitlist_cu18(): void
+    {
+        $medico = Medico::factory()->create();
+        $recepcionista = $this->usuario('recepcionista');
+        $pacienteUser = $this->usuario('paciente');
+
+        // 1. El médico tiene prohibido el acceso HTTP a las rutas de CU18 (Lista de Espera)
+        $this->actingAs($medico->user)->get(route('espera.index'))->assertForbidden();
+        $this->actingAs($medico->user)->get(route('espera.create'))->assertForbidden();
+
+        // 2. El médico no ve el enlace a Lista de Espera (CU18) en su menú lateral
+        $this->actingAs($medico->user)->get(route('citas.index'))
+            ->assertOk()
+            ->assertDontSee('Lista de Espera (CU18)');
+
+        // 3. Recepcionista y Paciente sí visualizan CU18 en su interfaz
+        $this->actingAs($recepcionista)->get(route('citas.index'))
+            ->assertOk()
+            ->assertSee('Lista de Espera (CU18)');
+
+        $this->actingAs($pacienteUser)->get(route('historial.index'))
+            ->assertOk()
+            ->assertSee('Lista de Espera (CU18)');
+    }
 }

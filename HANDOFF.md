@@ -1,25 +1,21 @@
-# HANDOFF — Auto-Inasistencia After 15m and Allow New Appointment After 30m
+# HANDOFF — Hide CU18 (Waitlist) from Doctor Role
 
 ## Completed
-- Implemented automatic inasistencia transition:
-  - `CitaWorkflowService@procesarInasistenciasAutomaticas`: Transitions appointments in `programada` or `confirmada` to `inasistencia` when over 15 minutes past start time without attendance.
-  - Scheduled in `routes/console.php` every minute.
-  - Invoked dynamically in `CitaWorkflowService@validarCupo`, `CitaWizardController@create`, and `CitaController@index`.
-- Updated active appointment blocking rule:
-  - `CitaWorkflowService@validarCupo`: An appointment only blocks booking a new one if it is future or within 30 minutes of start time. Appointments older than 30 minutes or from previous days do not block.
-  - `CitaWizardController@create`: Filtered `$paciente->citas` so past appointments (>30m) do not block or trigger the active appointment warning in wizard UI.
-- Added feature tests in `tests/Feature/Etapa4Test.php`:
-  - `test_unattended_appointment_automatically_transitions_to_inasistencia_after_15_minutes`
-  - `test_past_appointment_older_than_30_minutes_does_not_block_booking_new_appointment`
-- Ran Pint and running full test suite.
+- Hidden CU18 (Lista de Espera) navigation from the Doctor (`medico`) role in `resources/views/components/sidebar.blade.php`:
+  - `Lista de Espera (CU18)` under `P4 · Citas Médicas` is now restricted to Admin and Recepcionista (`@if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista())`).
+  - Cleaned duplicate `Lista de Espera (CU18)` link in the Patient section.
+  - Verified route-level security: routes remain restricted to `['role:admin,recepcionista,paciente']` (403 for doctors).
+- Added regression test in `tests/Feature/CicloDosEtapaDosTest.php`:
+  - `test_doctor_cannot_view_or_access_waitlist_cu18`: confirms HTTP 403 when accessing `/espera` and `/espera/inscribir`, and asserts absence of "Lista de Espera (CU18)" on physician navigation while visible for receptionists and patients.
+- Cleaned accidental duplicate test method in `tests/Feature/Etapa4Test.php`.
+- Full test suite passing: 162/162 tests green (831 assertions).
+- Laravel Pint formatting checked and clean.
 
 ## Modified Files
-- `app/Services/CitaWorkflowService.php`
-- `app/Http/Controllers/P4_Citas/CitaWizardController.php`
-- `app/Http/Controllers/P4_Citas/CitaController.php`
-- `routes/console.php`
+- `resources/views/components/sidebar.blade.php`
+- `tests/Feature/CicloDosEtapaDosTest.php`
 - `tests/Feature/Etapa4Test.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Commit with Nov 7, 2026 timestamp, push to `origin main`, and verify deployment on Render.
+- Ready for commit (with Nov 7, 2026 timestamp), push to `origin main`, and verify deployment on Render.

@@ -35,13 +35,9 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Lista de Espera (CU18)
         </a>
-        @unless(auth()->user()->isMedico())<a href="/citas/nueva" class="nav-item {{ $currentRoute === 'citas/nueva' ? 'active' : '' }}">
+        <a href="/citas/nueva" class="nav-item {{ $currentRoute === 'citas/nueva' ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
             Solicitar Ficha (CU8)
-        </a>@endunless
-        <a href="{{ route('espera.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'espera') ? 'active' : '' }}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Lista de Espera (CU18)
         </a>
         @endif
 
@@ -63,10 +59,12 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
             Solicitar Ficha (CU8)
         </a>@endunless
+        @if(auth()->user()->isAdmin() || auth()->user()->isRecepcionista())
         <a href="{{ route('espera.index') }}" class="nav-item {{ str_starts_with($currentRoute, 'espera') ? 'active' : '' }}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Lista de Espera (CU18)
         </a>
+        @endif
 
         <div class="nav-section-title">P2 · Médicos y Horarios</div>
         <a href="/agenda" class="nav-item {{ str_starts_with($currentRoute, 'agenda') ? 'active' : '' }}">
