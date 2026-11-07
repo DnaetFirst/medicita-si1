@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\EnviarAviso;
 use App\Mail\AvisoCitaMail;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
@@ -16,6 +17,7 @@ use App\Services\CitaWorkflowService;
 use App\Services\NotificacionService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -277,5 +279,65 @@ class NotificacionesMultiRolTest extends TestCase
         $htmlSistema = $mailSistema->render();
         $this->assertStringContainsString('Alerta de Seguridad', $htmlSistema);
         $this->assertStringContainsString('Abrir Portal Clínico', $htmlSistema);
+    }
+
+    /**
+     * Verifica que al registrar una ficha médica para un paciente con correo específico
+     * (p. ej. choque0cabana@gmail.com), se despache y envíe el correo electrónico de aviso.
+     */
+    public function test_booking_appointment_dispatches_email_to_patient_recipient(): void
+    {
+        Mail::fake();
+
+        $pacienteData = [
+            'ci' => '67890123',
+            'nombres' => 'Carlos',
+            'apellidos' => 'Choque Cabana',
+            'fecha_nacimiento' => '1995-04-10',
+            'genero' => 'Masculino',
+            'grupo_sanguineo' => 'O+',
+            'telefono' => '71239876',
+            'email' => 'choque0cabana@gmail.com',
+            'estado' => 'activo',
+        ];
+
+        $this->actingAs($this->recepcionista)->post(route('pacientes.store'), $pacienteData);
+
+        $paciente = Paciente::where('email', 'choque0cabana@gmail.com')->firstOrFail();
+        $this->assertNotNull($paciente->user);
+        $this->assertEquals('choque0cabana@gmail.com', $paciente->user->email);
+
+        $slot = Slot::create([
+            'medico_id' => $this->medico->id,
+            'fecha' => today()->addDays(3)->toDateString(),
+            'hora_inicio' => '11:00:00',
+            'hora_fin' => '11:15:00',
+            'estado' => 'disponible',
+            'sobrecupo' => false,
+        ]);
+
+        $response = $this->actingAs($this->recepcionista)->post(route('citas.store'), [
+            'paciente_id' => $paciente->id,
+            'medico_id' => $this->medico->id,
+            'slot_id' => $slot->id,
+            'motivo_consulta' => 'Control médico general',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $cita = Cita::where('slot_id', $slot->id)->firstOrFail();
+
+        $aviso = Notificacion::where('user_id', $paciente->user_id)->where('cita_id', $cita->id)->firstOrFail();
+        $this->assertEquals('reserva', $aviso->tipo);
+
+        (new EnviarAviso($aviso->id))->handle();
+
+        Mail::assertSent(AvisoCitaMail::class, function ($mail) {
+            return $mail->hasTo('choque0cabana@gmail.com');
+        });
+
+        $this->assertDatabaseHas('notificaciones', [
+            'id' => $aviso->id,
+            'estado_envio' => 'enviado',
+        ]);
     }
 }

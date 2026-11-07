@@ -206,6 +206,7 @@ class UsuarioController extends Controller
                     'name' => $nombreCompleto,
                     'telefono' => $validated['telefono'],
                     'estado' => $validated['estado'],
+                    'email_verified_at' => now(),
                 ];
                 if (! empty($validated['password'])) {
                     $datosActualizar['password'] = Hash::make($password);
@@ -221,6 +222,8 @@ class UsuarioController extends Controller
                     'rol_id' => $rol->id,
                     'telefono' => $validated['telefono'],
                     'estado' => $validated['estado'],
+                    'email_verified_at' => now(),
+                    'email_verified_at' => now(),
                     'debe_cambiar_password' => $debeCambiar,
                 ]);
             }
@@ -261,6 +264,7 @@ class UsuarioController extends Controller
                         'rol_id' => $rol->id,
                         'telefono' => $validated['resp_telefono'],
                         'estado' => 'activo',
+                        'email_verified_at' => now(),
                         'debe_cambiar_password' => true,
                     ]);
                 }
@@ -345,6 +349,7 @@ class UsuarioController extends Controller
                 'password' => Hash::make($validated['password']),
                 'rol_id' => $rol->id,
                 'estado' => $validated['estado'],
+                'email_verified_at' => now(),
             ]);
 
             $medico = Medico::create([
@@ -354,6 +359,7 @@ class UsuarioController extends Controller
                 'telefono_contacto' => $validated['telefono'] ?? null,
                 'biografia' => $validated['biografia'] ?? null,
                 'estado' => $validated['estado'],
+                'email_verified_at' => now(),
             ]);
 
             for ($dia = 1; $dia <= 5; $dia++) {

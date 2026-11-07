@@ -21,6 +21,7 @@ class Notificacion extends Model
 
     protected $casts = [
         'leido' => 'boolean',
+        'enviado_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

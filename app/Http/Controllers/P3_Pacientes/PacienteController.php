@@ -170,6 +170,7 @@ class PacienteController extends Controller
                     'rol_id' => $rolPaciente?->id,
                     'telefono' => $validated['telefono'],
                     'estado' => 'activo',
+                    'email_verified_at' => now(),
                     'debe_cambiar_password' => true,
                 ]);
             } else {
@@ -387,6 +388,7 @@ class PacienteController extends Controller
                     'rol_id' => $rolPaciente?->id,
                     'telefono' => $validated['telefono'],
                     'estado' => 'activo',
+                    'email_verified_at' => now(),
                     'debe_cambiar_password' => true,
                 ]);
                 $tutorUserId = $nuevoTutorUser->id;
@@ -452,6 +454,7 @@ class PacienteController extends Controller
                     'rol_id' => $rolPaciente?->id,
                     'telefono' => $paciente->telefono,
                     'estado' => 'activo',
+                    'email_verified_at' => now(),
                     'debe_cambiar_password' => true,
                 ]
             );

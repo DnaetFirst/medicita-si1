@@ -1,25 +1,26 @@
-# HANDOFF — Multi-Role Notifications (CU16), Email Verification & Unread Banner
+# HANDOFF — Patient Email Notification & Appointment Booking Verification
 
 ## Completed
-- Implemented comprehensive role-based notifications across all roles (paciente, tutor, médico, recepción, lab, admin):
-  - Physician notified when patient arrives at reception (`llegada_paciente`).
-  - Lab staff notified upon lab order emission (`laboratorio_orden`).
-  - Physician notified upon lab results publication (`laboratorio`).
-  - Receptionists notified on automatic inasistencias and waitlist expired offers.
-  - Admin notified on schedule blocks, account lockouts (3 failed attempts), and SMTP failure (5 retries).
-- Verified email notification infrastructure:
-  - Redesigned `emails/citas/aviso.blade.php` with responsive "Medical Blue" layout and safe null-handling for non-appointment notices.
-- Added user-facing unread notification alert:
-  - Top alert banner in `layouts/app.blade.php` displaying unread count and direct action button.
-  - Added notification badge counter in `components/sidebar.blade.php`.
-- Created automated test suite `tests/Feature/NotificacionesMultiRolTest.php` (7 tests). Total suite: 170/170 passing (854 assertions).
+- Verified and fixed email dispatch pipeline for newly registered patients:
+  - Added `'email_verified_at' => now()` during patient and user account creation across `PacienteController`, `CitaWizardController`, and `UsuarioController`.
+  - In `EnviarAviso.php`, updated condition to verify `$aviso->user?->email` is present and active, preventing unverified patient accounts from being skipped.
+  - Added `'enviado_at' => 'datetime'` cast in `Notificacion` model.
+- Executed action and verified email delivery for recipient `choque0cabana@gmail.com`:
+  - Registered patient Carlos Choque Cabana (`choque0cabana@gmail.com`, CI: 67890123).
+  - Booked appointment with slip code `FCH-20261112-EA4Y` for Dr. Roberto Pérez.
+  - Processed `EnviarAviso` job, verifying status transition to `enviado` with timestamp.
+  - Verified RFC 2822 email generation in `storage/logs/laravel.log`.
+- Added test in `tests/Feature/NotificacionesMultiRolTest.php`: `test_booking_appointment_dispatches_email_to_patient_recipient`. Total: 171/171 passing (860 assertions).
 - Formatted with Laravel Pint.
 
 ## Modified Files
-- `app/Http/Controllers/P1_Usuarios/AuthController.php`, `BloqueoController.php`, `LaboratorioController.php`
-- `app/Jobs/EnviarAviso.php`, `ResponsableAutorizado.php`, `CitaWorkflowService.php`, `NotificacionService.php`
-- `resources/views/components/sidebar.blade.php`, `emails/citas/aviso.blade.php`, `layouts/app.blade.php`
-- `tests/Feature/NotificacionesMultiRolTest.php`, `CONTEXT.md`, `HANDOFF.md`
+- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
+- `app/Http/Controllers/P3_Pacientes/PacienteController.php`
+- `app/Http/Controllers/P4_Citas/CitaWizardController.php`
+- `app/Jobs/EnviarAviso.php`
+- `app/Models/P7/Notificacion.php`
+- `tests/Feature/NotificacionesMultiRolTest.php`
+- `HANDOFF.md`
 
 ## Next Step / Pending
-- Commit with Nov 7, 2026 timestamp, push to `origin main`, and check live Render health.
+- Ready for user review or further customization.

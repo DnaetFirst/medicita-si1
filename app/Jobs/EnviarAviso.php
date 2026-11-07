@@ -27,7 +27,7 @@ class EnviarAviso implements ShouldQueue
             if ($aviso->enviado_at || $aviso->estado_envio === 'revocado' || $aviso->intentos >= 5) {
                 return;
             }
-            if (! $aviso->user?->email_verified_at || $aviso->user->estado !== 'activo') {
+            if (! $aviso->user?->email || $aviso->user->estado !== 'activo') {
                 return;
             }
             $cita = Cita::find($aviso->cita_id);

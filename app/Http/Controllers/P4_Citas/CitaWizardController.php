@@ -281,6 +281,7 @@ class CitaWizardController extends Controller
                             'telefono' => $validatedPaciente['nuevo_telefono'],
                             'password' => Hash::make($validatedPaciente['nuevo_ci']),
                             'estado' => 'activo',
+                            'email_verified_at' => now(),
                             'debe_cambiar_password' => true,
                         ]);
                     } else {
@@ -329,6 +330,7 @@ class CitaWizardController extends Controller
                                 'rol_id' => $rolPaciente->id,
                                 'telefono' => $validatedPaciente['nuevo_resp_telefono'],
                                 'estado' => 'activo',
+                                'email_verified_at' => now(),
                                 'debe_cambiar_password' => true,
                             ]);
                         }
