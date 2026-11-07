@@ -250,8 +250,13 @@ class UsuarioController extends Controller
             return [$user, $paciente];
         });
 
+        $tieneTutor = ! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres']);
+        $msg = $tieneTutor
+            ? "Paciente '{$paciente->nombre_completo}' registrado exitosamente con tutor legal autorizado ({$validated['resp_nombres']}). Acceso al portal asignado al tutor con su CI como contraseña inicial."
+            : "Usuario Paciente '{$user->name}' registrado exitosamente con su Ficha Clínica Digital (CU7).";
+
         return redirect()->route('usuarios.index')
-            ->with('success', "Usuario Paciente '{$user->name}' registrado exitosamente con su Ficha Clínica Digital (CU7).");
+            ->with('success', $msg);
     }
 
     /**

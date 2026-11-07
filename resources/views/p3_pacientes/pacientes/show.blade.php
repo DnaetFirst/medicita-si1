@@ -326,7 +326,7 @@
             </div>
 
             <div class="cycle-grid">
-<label>Cuenta del responsable (ID de usuario PAC, opcional)<input type="number" min="1" name="user_id" class="form-input" value="{{ old('user_id') }}"><small>Si se deja vacío, se vinculará o creará automáticamente con su número de carnet.</small></label>
+<label>Cuenta del responsable (ID de usuario PAC, opcional)<input type="number" min="1" name="user_id" class="form-input" value="{{ old('user_id') }}"><small>Si se deja vacío, se vinculará o creará automáticamente su cuenta con su correo y carnet de identidad.</small></label>
 <label>Inicio de vigencia<input type="date" name="vigencia_inicio" class="form-input" value="{{ old('vigencia_inicio', today()->toDateString()) }}"></label>
 <label><input type="checkbox" name="puede_gestionar_citas" value="1" @checked(old('puede_gestionar_citas', true))> Gestionar citas e historial administrativo</label>
 <label><input type="checkbox" name="puede_ver_resultados" value="1" @checked(old('puede_ver_resultados', true))> Consultar resultados publicados</label>

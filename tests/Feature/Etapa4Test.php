@@ -694,5 +694,13 @@ class Etapa4Test extends TestCase
         $this->assertTrue(Hash::check($ciTutor, $tutor->password));
         $this->assertTrue($tutor->debe_cambiar_password);
         $this->assertTrue($tutor->isPaciente());
+
+        // 4. Verificar que la notificación informa las credenciales del TUTOR y no del tutelado
+        $responseExito->assertSessionHas('success_html');
+        $sessionHtml = session('success_html');
+        $this->assertStringContainsString('tutor legal autorizado', $sessionHtml);
+        $this->assertStringContainsString('asignada al tutor: <strong>'.$emailTutor.'</strong>', $sessionHtml);
+        $this->assertStringContainsString('Contraseña inicial del tutor: <strong>'.$ciTutor.'</strong>', $sessionHtml);
+        $this->assertStringNotContainsString('registrado con cuenta vinculada de acceso al portal', $sessionHtml);
     }
 }

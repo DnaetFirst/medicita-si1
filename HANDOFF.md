@@ -1,16 +1,22 @@
-# HANDOFF — Hide Patient Account Message When Legal Tutor Is Checked
+# HANDOFF — Fix Notification When Registering Patients with Legal Tutor
 
 ## Completed
-- Conditionally hid "Se utilizará para la cuenta de usuario del paciente." when "Tiene tutor legal" is checked:
-  - `p3_pacientes.pacientes.create`: Added `msgCuentaPaciente` toggle so the hint disappears when having a legal guardian.
-  - `p4_citas.citas.wizard`: Added `msgCuentaNuevoPaciente` toggle hiding the account creation text when a legal guardian is specified.
-  - `p1_auth.usuarios.create`: Toggled label from `Correo Electrónico (Login) *` to `Correo Electrónico *` when having a tutor.
-- Ran Pint and verified tests.
+- Updated patient registration notification in `PacienteController@store`:
+  - When `tiene_responsable` is active, displays tutor's portal account details (`resp_email`, `resp_ci`, and initial password as `resp_ci`).
+  - Omits the minor's password credential notice when a legal guardian manages the account.
+  - Retains standard patient account notification only when no guardian is registered.
+- Updated `PacienteController@storeResponsable`:
+  - Displays tutor's portal credentials if a new tutor user account was created.
+- Updated `UsuarioController@storePaciente` flash notification.
+- Updated modal hint in `p3_pacientes.pacientes.show`.
+- Added test assertions in `tests/Feature/Etapa4Test.php`.
+- Ran Pint and running full test suite.
 
 ## Modified Files
-- `resources/views/p3_pacientes/pacientes/create.blade.php`
-- `resources/views/p4_citas/citas/wizard.blade.php`
-- `resources/views/p1_auth/usuarios/create.blade.php`
+- `app/Http/Controllers/P3_Pacientes/PacienteController.php`
+- `app/Http/Controllers/P1_Usuarios/UsuarioController.php`
+- `resources/views/p3_pacientes/pacientes/show.blade.php`
+- `tests/Feature/Etapa4Test.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending

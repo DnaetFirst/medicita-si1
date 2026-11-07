@@ -211,9 +211,17 @@ class PacienteController extends Controller
             'email' => $emailAcceso,
         ]);
 
-        $mensajePassword = "Paciente {$paciente->nombre_completo} registrado con cuenta vinculada de acceso al portal.<br>"
-            ."Identificador de acceso: <strong>{$emailAcceso}</strong> (o carnet: <strong>{$validated['ci']}</strong>)<br>"
-            ."Contraseña inicial: <strong>{$passwordInicial}</strong> (número de CI, se solicitará cambio por seguridad en el primer inicio de sesión).";
+        $tieneTutor = ! empty($validated['tiene_responsable']) && ! empty($validated['resp_nombres']);
+
+        if ($tieneTutor) {
+            $mensajePassword = "Paciente <strong>{$paciente->nombre_completo}</strong> registrado exitosamente con tutor legal autorizado (<strong>{$validated['resp_nombres']}</strong>).<br>"
+                ."Cuenta de acceso al portal asignada al tutor: <strong>{$validated['resp_email']}</strong> (o carnet: <strong>{$validated['resp_ci']}</strong>)<br>"
+                ."Contraseña inicial del tutor: <strong>{$validated['resp_ci']}</strong> (número de CI del tutor, se solicitará cambio por seguridad en el primer inicio de sesión).";
+        } else {
+            $mensajePassword = "Paciente {$paciente->nombre_completo} registrado con cuenta vinculada de acceso al portal.<br>"
+                ."Identificador de acceso: <strong>{$emailAcceso}</strong> (o carnet: <strong>{$validated['ci']}</strong>)<br>"
+                ."Contraseña inicial: <strong>{$passwordInicial}</strong> (número de CI, se solicitará cambio por seguridad en el primer inicio de sesión).";
+        }
 
         return redirect()->route('pacientes.show', $paciente)
             ->with('success_html', $mensajePassword);
@@ -317,6 +325,7 @@ class PacienteController extends Controller
         ]);
 
         $tutorUserId = $validated['user_id'] ?? null;
+        $tutorUserCreado = false;
         if (! empty($tutorUserId)) {
             $cuenta = User::findOrFail($tutorUserId);
             abort_unless($cuenta->isPaciente() && $cuenta->estado === 'activo' && $cuenta->ci === $validated['ci'], 422, 'La cuenta debe ser de paciente, estar activa y corresponder al CI del responsable.');
@@ -339,6 +348,7 @@ class PacienteController extends Controller
                     'debe_cambiar_password' => true,
                 ]);
                 $tutorUserId = $nuevoTutorUser->id;
+                $tutorUserCreado = true;
             }
         }
 
@@ -366,7 +376,15 @@ class PacienteController extends Controller
             'vigencia' => $responsable->fecha_limite_vigencia->toDateString(),
         ]);
 
-        return back()->with('success', 'Responsable legal/autorizado acreditado correctamente. El tutor puede gestionar citas y ver resultados desde su portal.');
+        if ($tutorUserCreado) {
+            $mensaje = "Responsable legal autorizado (<strong>{$responsable->nombres}</strong>) acreditado con éxito.<br>"
+                ."Cuenta de acceso al portal creada para el tutor: <strong>{$validated['email']}</strong> (o carnet: <strong>{$validated['ci']}</strong>)<br>"
+                ."Contraseña inicial del tutor: <strong>{$validated['ci']}</strong> (número de CI, se solicitará cambio por seguridad en el primer inicio de sesión).";
+
+            return back()->with('success_html', $mensaje);
+        }
+
+        return back()->with('success', "Responsable legal/autorizado '{$responsable->nombres}' acreditado correctamente y vinculado a su cuenta de acceso al portal.");
     }
 
     /**
