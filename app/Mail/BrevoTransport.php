@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
@@ -20,6 +21,7 @@ class BrevoTransport extends AbstractTransport
     protected function doSend(SentMessage $message): void
     {
         if ($this->apiKey === '') {
+            Log::error('Brevo configuration error', ['reason' => 'missing_api_key']);
             throw new TransportException('BREVO_API_KEY no está configurada.');
         }
         $email = $message->getOriginalMessage();
@@ -49,9 +51,15 @@ class BrevoTransport extends AbstractTransport
             $response = Http::acceptJson()->withHeaders(['api-key' => $this->apiKey])
                 ->connectTimeout(5)->timeout(15)->post('https://api.brevo.com/v3/smtp/email', $payload);
         } catch (ConnectionException) {
+            Log::error('Brevo connection failed');
             throw new TransportException('No se pudo conectar con Brevo por HTTPS.');
         }
         if (! $response->successful() || ! is_string($response->json('messageId')) || $response->json('messageId') === '') {
+            $providerCode = $response->json('code');
+            Log::error('Brevo rejected email', [
+                'http_status' => $response->status(),
+                'provider_code' => is_string($providerCode) && preg_match('/^[a-zA-Z_]{1,60}$/', $providerCode) ? $providerCode : 'unknown',
+            ]);
             throw new TransportException('Brevo no aceptó el correo (HTTP '.$response->status().'). Revisa la clave, el remitente y la cuota.');
         }
         $message->setMessageId($response->json('messageId'));
