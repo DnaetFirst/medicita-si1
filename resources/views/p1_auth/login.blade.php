@@ -154,7 +154,7 @@
             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--color-text); cursor: pointer;">
                 <input type="checkbox" name="remember" style="accent-color: var(--color-secondary);"> Recordar sesión
             </label>
-            <span style="font-size: 0.75rem; color: var(--color-text-muted);">Seguridad RBAC</span>
+            <a href="{{ route('password.request') }}" style="font-size: 0.875rem; color: var(--color-primary);">¿Olvidaste tu contraseña?</a>
         </div>
 
         <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; font-weight: 600; box-shadow: 0 4px 10px rgba(13, 124, 124, 0.25);">

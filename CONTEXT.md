@@ -41,7 +41,7 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - **Bitacora:** `belongsTo(User)`.
 
 ## 4. Key Routes & Auth
-- **Authentication:** Custom session auth (`/login`, `/logout`). Passwords hashed with bcrypt; lockout after 3 failed login attempts.
+- **Authentication:** Custom session auth (`/login`, `/logout`); password recovery via `/olvide-password` and `/restablecer-password/{token}` using Laravel's expiring, single-use broker tokens, rate limits and session revocation. Passwords hashed with bcrypt; lockout after 3 failed login attempts.
 - **RBAC Middleware:** `CheckRole` validates slugs (`admin`, `recepcionista`, `medico`, `paciente`, `lab`).
 - **Route Prefixes & Endpoints:**
   - Administrative (`role:admin`): `/usuarios`, `/bitacora` (CSV export).
@@ -64,5 +64,5 @@ It enforces strict data isolation across patients, legal guardians, receptionist
 - A partial unique index enforces one pending offer per slot; acceptance revalidates shared availability and retries return the same visit.
 - Reports include movements, waitlists, offers, patient registrations and lab order states; clinical observations/results remain excluded.
 - Local PHP CA trust is configured through ignored `.env` GEMINI_CA_BUNDLE; production uses its normal CA trust.
-- Browser UI automation currently fails while reading/controlling the open Render tab. Render/Neon integrations are not connected.
-- The real Neon connection URI is absent locally; README contains a placeholder. Cloud provisioning requires that secret and new-account access.
+- Render MCP is connected to the confirmed workspace `tea-dbhnc1mc6qcc73fsbfh0`; web service `srv-dbnorim7bikc73d51n5g`. Browser tab access still fails.
+- Render Free blocks SMTP ports; production mail uses `MAIL_MAILER=brevo`, `BREVO_API_KEY`, and a verified `MAIL_FROM_ADDRESS`. `BrevoTransport` uses HTTPS without new dependencies. `CorreoService` rejects log/array delivery in production.

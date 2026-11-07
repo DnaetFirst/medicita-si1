@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\P1_Usuarios\AuthController;
 use App\Http\Controllers\P1_Usuarios\BitacoraController;
+use App\Http\Controllers\P1_Usuarios\RecuperarPasswordController;
 use App\Http\Controllers\P1_Usuarios\UsuarioController;
 use App\Http\Controllers\P2_MedicosAgendas\AgendaController;
 use App\Http\Controllers\P2_MedicosAgendas\BloqueoController;
@@ -31,6 +32,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::middleware('guest')->group(function (): void {
+    Route::get('/olvide-password', [RecuperarPasswordController::class, 'create'])->name('password.request');
+    Route::post('/olvide-password', [RecuperarPasswordController::class, 'store'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/restablecer-password/{token}', [RecuperarPasswordController::class, 'edit'])->name('password.reset');
+    Route::post('/restablecer-password', [RecuperarPasswordController::class, 'update'])->middleware('throttle:5,1')->name('password.update');
+});
 
 /*
 |--------------------------------------------------------------------------
