@@ -22,6 +22,7 @@ case "${PROCESS_ROLE:-web}" in
         ;;
     web)
         php artisan migrate --force --no-interaction
+        php artisan app:poblar-agenda-demo --no-interaction
         ;;
     *) echo "PROCESS_ROLE must be web, release, worker or scheduler" >&2; exit 1 ;;
 esac

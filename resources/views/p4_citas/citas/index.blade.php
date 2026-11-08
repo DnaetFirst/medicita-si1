@@ -10,10 +10,17 @@
             Gestión de turnos, check-in en sala de espera, transiciones de atención médica y cancelaciones
         </p>
     </div>
-    @unless(auth()->user()->isMedico())<a href="{{ route('citas.nueva') }}" class="btn btn-primary" style="box-shadow: 0 4px 10px rgba(13, 124, 124, 0.2);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-        Solicitar Ficha / Nueva Cita (CU8)
-    </a>@endunless
+    @unless(auth()->user()->isMedico())
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{{ route('citas.poblar_demo') }}" class="btn btn-secondary" style="border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 0.4rem;" title="Generar turnos y citas para hoy y mañana">
+            ⚡ Poblar Citas Demo
+        </a>
+        <a href="{{ route('citas.nueva') }}" class="btn btn-primary" style="box-shadow: 0 4px 10px rgba(13, 124, 124, 0.2);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            Solicitar Ficha / Nueva Cita (CU8)
+        </a>
+    </div>
+    @endunless
 </div>
 
 <!-- KPIs del Día -->

@@ -22,6 +22,7 @@ use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -140,6 +141,11 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
         // CU10: Tablero de Citas y Control de Asistencia (solo personal clínico)
         Route::get('/citas', [CitaController::class, 'index'])->name('citas.index');
+        Route::get('/citas/poblar-demo', function () {
+            Artisan::call('app:poblar-agenda-demo');
+
+            return redirect()->route('citas.index')->with('success', 'Agenda de citas para hoy y mañana poblada exitosamente.');
+        })->middleware('role:admin,recepcionista')->name('citas.poblar_demo');
         Route::post('/citas/{cita}/checkin', [CitaController::class, 'checkin'])->name('citas.checkin');
         Route::post('/citas/{cita}/iniciar', [CitaController::class, 'iniciarAtencion'])->name('citas.iniciar');
         Route::post('/citas/{cita}/finalizar', [CitaController::class, 'finalizarAtencion'])->name('citas.finalizar');
