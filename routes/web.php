@@ -137,15 +137,24 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     // ─────────────────────────────────────────────────────────────────
     // Módulo de Citas Médicas y Fichas (CU8, CU9, CU10, CU11)
     // Admin / Recepcionista / Médico: acceso completo al tablero y control
+    Route::get('/citas/poblar-demo', function () {
+        Artisan::call('app:poblar-agenda-demo');
+
+        if (auth()->user()->isPaciente()) {
+            return redirect()->route('espera.index')->with('success', 'Agenda y citas de prueba pobladas exitosamente para todos los médicos.');
+        }
+
+        if (auth()->user()->isMedico()) {
+            return redirect()->route('agenda.show')->with('success', 'Agenda médica y citas de prueba pobladas exitosamente.');
+        }
+
+        return redirect()->route('citas.index')->with('success', 'Agenda de citas para hoy y los próximos días poblada exitosamente para todos los médicos.');
+    })->middleware('role:admin,recepcionista,medico,paciente')->name('citas.poblar_demo');
+
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista,medico'])->group(function () {
         // CU10: Tablero de Citas y Control de Asistencia (solo personal clínico)
         Route::get('/citas', [CitaController::class, 'index'])->name('citas.index');
-        Route::get('/citas/poblar-demo', function () {
-            Artisan::call('app:poblar-agenda-demo');
-
-            return redirect()->route('citas.index')->with('success', 'Agenda de citas para hoy y mañana poblada exitosamente.');
-        })->middleware('role:admin,recepcionista')->name('citas.poblar_demo');
         Route::post('/citas/{cita}/checkin', [CitaController::class, 'checkin'])->name('citas.checkin');
         Route::post('/citas/{cita}/iniciar', [CitaController::class, 'iniciarAtencion'])->name('citas.iniciar');
         Route::post('/citas/{cita}/finalizar', [CitaController::class, 'finalizarAtencion'])->name('citas.finalizar');

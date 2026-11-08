@@ -26,6 +26,9 @@
         <a href="{{ route('agenda.show', ['medico_id' => $medico?->id, 'fecha' => today()->toDateString()]) }}" class="btn btn-primary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;">
             Hoy
         </a>
+        <a href="{{ route('citas.poblar_demo') }}" class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 0.25rem;" title="Generar y poblar citas demo en los turnos">
+            ⚡ Poblar Demo
+        </a>
     </div>
 </div>
 

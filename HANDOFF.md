@@ -1,22 +1,18 @@
-# HANDOFF — Fix Column Selection in Report Builder (CU17)
+# HANDOFF — Demo Agenda Seeding & Slot Recovery (CU18)
 
 ## Completed
-- Fixed column selection in the visual report builder (Tipo 2):
-  * Added clear dual-mode switcher:
-    1. **📋 Reporte Detallado (Columnas a Medida):** User selects any combination of columns (`Código`, `Fecha`, `Hora`, `Médico`, `Paciente`, `CI`, `Estado`, etc.) with optional grouping/ordering by specialty, doctor, or status. All selected columns are preserved in preview, CSV, and PDF.
-    2. **📈 Resumen Estadístico (Métricas y Totales):** Calculates grouped metrics (`Total de citas`, `Tasa de asistencia (%)`, `Cancelaciones`, `Inasistencias`).
-  * Added quick selection buttons: `[✓ Todas]` and `[✕ Limpiar]`.
-  * Updated `ReporteConstructorService` and `ReporteController` to support both modes seamlessly.
-- Entire test suite (201/201 tests) passing with 1,025 assertions.
+- Upgraded `PoblarAgendaDemoCommand` (`php artisan app:poblar-agenda-demo`) to use `SlotGeneratorService::generarSlotsParaFecha` canonically for all active doctors across 4 days (today, tomorrow, +2d, +3d).
+- Populated morning confirmed appointments (08:00 - 09:00) with demo patients: María Ballesteros, Lucía Fernández, Mateo Villagómez, and Camila Antelo.
+- Added direct `⚡ Poblar Demo` buttons in both `/citas` (Control de Citas) and `/agenda` (Agenda Médica), accessible by any role (`admin`, `recepcionista`, `medico`, `paciente`).
+- Fixed PHPUnit bootstrap script check on Windows environment. Full test suite (201/201 tests) passing.
 
 ## Modified Files
-- `app/Services/ReporteConstructorService.php`
-- `app/Http/Controllers/P6_Reportes/ReporteController.php`
-- `resources/views/p6_reportes/index.blade.php`
-- `public/js/reportes.js`
-- `tests/Feature/Cu17ReportesTresTiposTest.php`
-- `tests/Feature/Etapa4Test.php`
+- `app/Console/Commands/PoblarAgendaDemoCommand.php`
+- `routes/web.php`
+- `resources/views/p4_citas/citas/index.blade.php`
+- `resources/views/p2_medicos/agenda/show.blade.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Ready for user testing on the report builder.
+- Commit & push changes to trigger Render deployment.
+- Guide the user to click `⚡ Poblar Demo` or visit `/citas/poblar-demo` once the cloud deployment finishes.

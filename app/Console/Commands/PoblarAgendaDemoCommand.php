@@ -10,6 +10,8 @@ use App\Models\P2\Slot;
 use App\Models\P3\Paciente;
 use App\Models\P4\Cita;
 use App\Models\User;
+use App\Services\SlotGeneratorService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -20,15 +22,15 @@ class PoblarAgendaDemoCommand extends Command
 
     protected $description = 'Puebla la agenda de hoy, mañana y los próximos días con slots y citas confirmadas para pruebas de cancelación y lista de espera';
 
-    public function handle(): int
+    public function handle(SlotGeneratorService $slotService): int
     {
-        $this->info('Iniciando poblamiento de agenda para pruebas clínicas...');
+        $this->info('Iniciando poblamiento integral de agenda para pruebas clínicas...');
 
         // 1. Asegurar roles esenciales
         $rolMed = Rol::firstOrCreate(['slug' => 'medico'], ['nombre' => 'Médico']);
         $rolPac = Rol::firstOrCreate(['slug' => 'paciente'], ['nombre' => 'Paciente']);
 
-        // 2. Asegurar Especialidad y Médicos
+        // 2. Asegurar Especialidad y Médicos principales
         $espGeneral = Especialidad::firstOrCreate(
             ['codigo' => 'MED-GEN'],
             ['nombre' => 'Medicina General', 'activo' => true]
@@ -57,22 +59,7 @@ class PoblarAgendaDemoCommand extends Command
             ]
         );
 
-        // 3. Horarios del médico de Lunes a Sábado
-        for ($dia = 1; $dia <= 6; $dia++) {
-            HorarioAtencion::firstOrCreate(
-                ['medico_id' => $medicoGeneral->id, 'dia_semana' => $dia],
-                [
-                    'hora_inicio' => '08:00',
-                    'hora_fin' => '17:00',
-                    'duracion_slot_minutos' => 15,
-                    'descanso_inicio' => '12:00',
-                    'descanso_fin' => '13:00',
-                    'activo' => true,
-                ]
-            );
-        }
-
-        // 4. Asegurar Paciente Demo (para el usuario que prueba)
+        // 3. Asegurar Paciente Demo (para el usuario que prueba la lista de espera)
         $userPacDemo = User::firstOrCreate(
             ['email' => 'paciente.demo@medicita.com'],
             [
@@ -97,7 +84,7 @@ class PoblarAgendaDemoCommand extends Command
             ]
         );
 
-        // 5. Asegurar Otros Pacientes (los que tendrán las citas que se cancelarán)
+        // 4. Asegurar Pacientes con Citas (María Ballesteros y otros)
         $otrosPacientesData = [
             ['ci' => '6614579365', 'nombres' => 'María', 'apellidos' => 'Ballesteros', 'email' => 'pac.6614579365@medicita.local'],
             ['ci' => '60891234', 'nombres' => 'Lucía', 'apellidos' => 'Fernández Paredes', 'email' => 'lucia.fernandez@gmail.com'],
@@ -131,7 +118,13 @@ class PoblarAgendaDemoCommand extends Command
             $pacientesParaCitas[] = $p;
         }
 
-        // 6. Generar Slots y Citas para: Hoy, Mañana y los próximos 2 días
+        // 5. Todos los médicos activos a poblar (Dr. Pérez siempre primero)
+        $medicos = Medico::with('user', 'especialidad')->where('estado', 'activo')->get();
+        if ($medicos->isEmpty()) {
+            $medicos = collect([$medicoGeneral]);
+        }
+
+        // Fechas: Hoy, Mañana, +2 días y +3 días
         $fechas = [
             today()->toDateString(),
             today()->addDay()->toDateString(),
@@ -139,66 +132,58 @@ class PoblarAgendaDemoCommand extends Command
             today()->addDays(3)->toDateString(),
         ];
 
-        $horasManana = [
-            ['08:00', '08:15'],
-            ['08:15', '08:30'],
-            ['08:30', '08:45'],
-            ['08:45', '09:00'],
-            ['09:00', '09:15'],
-            ['09:15', '09:30'],
-            ['09:30', '09:45'],
-            ['09:45', '10:00'],
-            ['10:00', '10:15'],
-            ['10:15', '10:30'],
-            ['10:30', '10:45'],
-            ['10:45', '11:00'],
-            ['11:00', '11:15'],
-            ['11:15', '11:30'],
-            ['11:30', '11:45'],
-            ['11:45', '12:00'],
-        ];
-
         $citasNuevas = 0;
-        foreach ($fechas as $fecha) {
-            foreach ($horasManana as $index => [$hIni, $hFin]) {
-                $slot = Slot::where('medico_id', $medicoGeneral->id)
-                    ->whereDate('fecha', $fecha)
-                    ->where('hora_inicio', $hIni.':00')
-                    ->first();
 
-                if (! $slot) {
-                    $slot = Slot::create([
-                        'medico_id' => $medicoGeneral->id,
-                        'fecha' => $fecha,
-                        'hora_inicio' => $hIni.':00',
-                        'hora_fin' => $hFin.':00',
-                        'estado' => 'disponible',
-                    ]);
-                }
+        foreach ($medicos as $med) {
+            // Asegurar horarios de atención de lunes a sábado (días 1 a 6)
+            for ($dia = 1; $dia <= 6; $dia++) {
+                HorarioAtencion::firstOrCreate(
+                    ['medico_id' => $med->id, 'dia_semana' => $dia],
+                    [
+                        'hora_inicio' => '08:00',
+                        'hora_fin' => '17:00',
+                        'duracion_slot_minutos' => 15,
+                        'descanso_inicio' => '12:00',
+                        'descanso_fin' => '13:00',
+                        'activo' => true,
+                    ]
+                );
+            }
 
-                // En las primeras 4 citas de la mañana (08:00 a 09:00), si no hay cita, creamos una cita confirmada
-                $citaExistente = Cita::where('slot_id', $slot->id)->first();
-                if ($index < 4 && ! $citaExistente) {
-                    $pacienteAsignado = $pacientesParaCitas[$index % count($pacientesParaCitas)];
-                    $slot->update(['estado' => 'reservado']);
+            foreach ($fechas as $fecha) {
+                // Generar los slots canónicos vía SlotGeneratorService
+                $slots = $slotService->generarSlotsParaFecha($med, $fecha);
 
-                    $codigo = 'FCH-'.str_replace('-', '', $fecha).'-'.strtoupper(Str::random(6));
-                    Cita::create([
-                        'codigo_ficha' => $codigo,
-                        'paciente_id' => $pacienteAsignado->id,
-                        'medico_id' => $medicoGeneral->id,
-                        'slot_id' => $slot->id,
-                        'fecha' => $fecha,
-                        'hora' => $hIni.':00',
-                        'estado' => 'confirmada',
-                        'motivo_consulta' => 'Control médico matutino programado',
-                    ]);
-                    $citasNuevas++;
+                // Poblar las primeras franjas matutinas (08:00 a 09:00) con citas confirmadas
+                $slotsMatutinos = $slots->filter(function ($s) {
+                    $hora = substr($s->hora_inicio, 0, 5);
+                    return $hora >= '08:00' && $hora < '09:00';
+                })->values();
+
+                foreach ($slotsMatutinos as $idx => $slot) {
+                    $citaExistente = Cita::where('slot_id', $slot->id)->first();
+                    if (! $citaExistente) {
+                        $pacienteAsignado = $pacientesParaCitas[$idx % count($pacientesParaCitas)];
+                        $slot->update(['estado' => 'reservado']);
+
+                        $codigo = 'FCH-'.str_replace('-', '', $fecha).'-'.strtoupper(Str::random(6));
+                        Cita::create([
+                            'codigo_ficha' => $codigo,
+                            'paciente_id' => $pacienteAsignado->id,
+                            'medico_id' => $med->id,
+                            'slot_id' => $slot->id,
+                            'fecha' => $fecha,
+                            'hora' => $slot->hora_inicio,
+                            'estado' => 'confirmada',
+                            'motivo_consulta' => 'Control médico matutino programado',
+                        ]);
+                        $citasNuevas++;
+                    }
                 }
             }
         }
 
-        $this->info("Poblamiento finalizado con éxito. Se aseguraron slots y se generaron {$citasNuevas} citas para cancelación/pruebas.");
+        $this->info("Poblamiento finalizado con éxito. Médicos procesados: {$medicos->count()}. Se aseguraron slots y se generaron {$citasNuevas} citas para cancelación/pruebas.");
 
         return Command::SUCCESS;
     }
