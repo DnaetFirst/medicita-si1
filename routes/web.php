@@ -138,7 +138,11 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     // Módulo de Citas Médicas y Fichas (CU8, CU9, CU10, CU11)
     // Admin / Recepcionista / Médico: acceso completo al tablero y control
     Route::get('/citas/poblar-demo', function () {
-        Artisan::call('app:poblar-agenda-demo');
+        try {
+            Artisan::call('app:poblar-agenda-demo');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error en poblar-demo: '.$e->getMessage());
+        }
 
         if (auth()->user()->isPaciente()) {
             return redirect()->route('espera.index')->with('success', 'Agenda y citas de prueba pobladas exitosamente para todos los médicos.');
