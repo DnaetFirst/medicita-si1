@@ -140,7 +140,7 @@
     <div class="header">
         <div class="logo-title">
             <h1>MediCita Pro</h1>
-            <p>Sistema Clínico Integrado · Reporte Operacional y de Gestión (CU17)</p>
+            <p>{{ $titulo ?? 'Reporte Operacional y de Gestión (CU17)' }}</p>
         </div>
         <div class="meta-info">
             <strong>Fecha de Emisión:</strong> {{ now()->format('d/m/Y H:i') }}<br>

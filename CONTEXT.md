@@ -51,9 +51,9 @@ It enforces strict data isolation across patients, legal guardians, receptionist
   - Patient Booking & Waitlist (`role:admin,recepcionista,paciente`): `/citas/nueva`, `POST /citas`, `/citas/{cita}`, `/citas/{cita}/reprogramar`, `/citas/{cita}/cancelar`, `/citas/{cita}/confirmar`, `/espera`, `POST /espera`, `/espera/ofertas/{oferta}`, `POST /espera/ofertas/{oferta}/aceptar`.
   - Clinical History (`AccesoPacienteService` restricted): `/historial`, `/historia/{paciente}`, `POST /historia/{paciente}/atenciones`, `POST /atenciones/{atencion}/derivaciones`.
   - Laboratory (`role:admin,lab,medico,paciente`): `/laboratorio/ordenes`, `POST /laboratorio/ordenes`, `/laboratorio/ordenes/{orden}`, `/laboratorio/ordenes/{orden}/resultados/crear`, `POST /laboratorio/resultados`, `/laboratorio/resultados/{resultado}`, `/laboratorio/resultados/{resultado}/pdf`, `/laboratorio/mis-resultados`.
-  - Business Intelligence & AI (`role:admin,recepcionista`): `/reportes`, `/reportes/exportar/csv`, `/reportes/exportar/pdf`, `POST /reportes/ia/consultar`.
+  - Business Intelligence & AI (`role:admin,recepcionista`): `/reportes` (3 report modalities: filters, visual builder, voice/SQL IA), `/reportes/exportar/csv`, `/reportes/exportar/pdf-binario`, `POST /reportes/constructor/preview`, `POST /reportes/constructor/csv`, `POST /reportes/constructor/pdf`, `POST /reportes/ia/consultar`, `GET /reportes/ia/{reporte}/pdf-binario`.
   - Notifications: `/avisos`, `POST /avisos/{aviso}/leer`.
-- **Key Domain Services:** `CitaWorkflowService`, `AccesoPacienteService` (enforces clinical privacy), `LaboratorioPdfService`, `SlotGeneratorService`, `RecuperacionCupoService`, `ReporteIndicadoresService`, `AiReporteService`, `NotificacionService`, `BitacoraService`.
+- **Key Domain Services:** `CitaWorkflowService`, `AccesoPacienteService` (enforces clinical privacy), `LaboratorioPdfService`, `ReportePdfService`, `ReporteConstructorService`, `SlotGeneratorService`, `RecuperacionCupoService`, `ReporteIndicadoresService`, `AiReporteService`, `NotificacionService`, `BitacoraService`.
 - **Testing Suite:** Feature tests organized by stages (`Etapa2Test` to `Etapa5Test`, `SuperAdminTest`, `CicloDosEtapaUnoTest`, `CicloDosEtapaDosTest`, `CicloDosEtapaTresTest`, `CicloDosMigracionTest`).
 
 ## Runtime and Deployment Review (2026-11-07)

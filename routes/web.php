@@ -216,12 +216,20 @@ Route::middleware(['auth', 'role:admin,recepcionista,medico,paciente,lab'])->gro
     // ─────────────────────────────────────────────────────────────────
     Route::middleware(['role:admin,recepcionista'])->group(function () {
         Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+        // Tipo 1: Exportaciones por filtros
         Route::get('/reportes/exportar/csv', [ReporteController::class, 'exportarCsv'])->name('reportes.csv');
         Route::get('/reportes/exportar/pdf', [ReporteController::class, 'exportarPdf'])->name('reportes.pdf');
+        Route::get('/reportes/exportar/pdf-binario', [ReporteController::class, 'exportarPdfBinario'])->name('reportes.pdf.binario');
+        // Tipo 2: Constructor visual
+        Route::post('/reportes/constructor/preview', [ReporteController::class, 'construirReporte'])->name('reportes.constructor.preview');
+        Route::post('/reportes/constructor/csv', [ReporteController::class, 'exportarConstructorCsv'])->name('reportes.constructor.csv');
+        Route::post('/reportes/constructor/pdf', [ReporteController::class, 'exportarConstructorPdf'])->name('reportes.constructor.pdf');
+        // Tipo 3: IA / Voz
         Route::post('/reportes/ia/consultar', [ReporteController::class, 'consultarIa'])->middleware('throttle:10,1')->name('reportes.ia.consultar');
         Route::post('/reportes/ia/transcribir', [ReporteController::class, 'transcribirAudio'])->middleware('throttle:10,1')->name('reportes.ia.transcribir');
         Route::get('/reportes/ia/{reporte}/csv', [ReporteController::class, 'exportarIaCsv'])->name('reportes.ia.csv');
         Route::get('/reportes/ia/{reporte}/pdf', [ReporteController::class, 'exportarIaPdf'])->name('reportes.ia.pdf');
+        Route::get('/reportes/ia/{reporte}/pdf-binario', [ReporteController::class, 'exportarIaPdfBinario'])->name('reportes.ia.pdf.binario');
     });
 
 });

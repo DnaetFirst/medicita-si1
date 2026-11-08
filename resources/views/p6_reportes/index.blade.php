@@ -12,13 +12,13 @@
             </p>
         </div>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <a href="{{ route('reportes.csv', request()->query()) }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            <a href="{{ route('reportes.csv', request()->query()) }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem;" title="Descargar reporte actual como CSV (Excel)">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Exportar CSV
+                Descargar CSV
             </a>
-            <a href="{{ route('reportes.pdf', request()->query()) }}" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            <a href="{{ route('reportes.pdf.binario', request()->query()) }}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.4rem;" title="Descargar reporte actual como PDF">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Imprimir / PDF
+                Descargar PDF
             </a>
         </div>
     </div>
@@ -190,6 +190,9 @@
 
         <!-- Contenedor dinámico de respuesta de IA -->
         <div id="ia-resultado-contenedor" style="display: none; margin-top: 1rem; border-top: 1px solid #cbd5e1; padding-top: 1rem;">
+            <!-- Banner de título del reporte IA -->
+            <div id="ia-titulo-reporte" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; font-weight: 600; color: #1e40af; margin-bottom: 0.75rem;"></div>
+
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span id="ia-estado-badge" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;"></span>
@@ -213,6 +216,130 @@
                 <summary style="cursor: pointer; font-weight: 600; color: #2563eb;">Transparencia: Ver consulta SQL validada</summary>
                 <pre id="ia-sql-debug" style="margin-top: 0.4rem; padding: 0.6rem; background: #0f172a; color: #38bdf8; border-radius: 4px; overflow-x: auto; font-size: 0.75rem; white-space: pre-wrap;"></pre>
             </details>
+        </div>
+    </div>
+
+    <!-- CONSTRUCTOR VISUAL DE REPORTES (CU17 TIPO 2) -->
+    <div class="card" style="padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #d1fae5; background: linear-gradient(180deg, #f8fafc 0%, #f0fdf4 100%); border-radius: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: #059669; color: white; font-size: 1rem;">📊</span>
+                <div>
+                    <h2 style="font-size: 1.1rem; font-weight: 700; color: #064e3b; margin: 0;">Constructor Visual de Reportes (Tipo 2)</h2>
+                    <p style="font-size: 0.8rem; color: #475569; margin: 0;">Selecciona columnas, agrupación y métricas. Previsualiza el resultado y descarga en PDF o Excel.</p>
+                </div>
+            </div>
+            <span style="font-size: 0.75rem; background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600;">Personalizable</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;" class="constructor-grid">
+            {{-- Columnas disponibles --}}
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">📋 Columnas a incluir</div>
+                <div style="border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem; background: white; max-height: 220px; overflow-y: auto;">
+                    @foreach($columnasDisponibles as $clave => $etiqueta)
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #1f2937; padding: 0.2rem 0; cursor: pointer;">
+                        <input type="checkbox" name="col_constructor" value="{{ $clave }}"
+                            {{ in_array($clave, ['fecha', 'especialidad', 'medico', 'estado']) ? 'checked' : '' }}
+                            style="accent-color: #059669;">
+                        {{ $etiqueta }}
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Agrupación --}}
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">🗂️ Agrupar por</div>
+                <select id="constructor-agrupacion" style="width: 100%; padding: 0.5rem; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.75rem; background: white;">
+                    @foreach($agrupacionesDisponibles as $clave => $etiqueta)
+                    <option value="{{ $clave }}">{{ $etiqueta }}</option>
+                    @endforeach
+                </select>
+
+                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">📈 Métricas (con agrupación)</div>
+                <div id="constructor-metricas-box" style="border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem; background: white;">
+                    @foreach($metricasDisponibles as $clave => $etiqueta)
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #1f2937; padding: 0.2rem 0; cursor: pointer;">
+                        <input type="checkbox" name="met_constructor" value="{{ $clave }}"
+                            {{ $clave === 'total' ? 'checked' : '' }}
+                            style="accent-color: #059669;">
+                        {{ $etiqueta }}
+                    </label>
+                    @endforeach
+                </div>
+
+                {{-- Filtros de fecha rápidos para el constructor --}}
+                <div style="margin-top: 0.75rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.4rem;">📅 Período (opcional)</div>
+                    <div style="display: flex; gap: 0.4rem;">
+                        <input type="date" id="constructor-fecha-inicio" placeholder="Desde"
+                            value="{{ $filtros['fecha_inicio'] ?? '' }}"
+                            style="flex: 1; padding: 0.35rem; border: 1px solid #a7f3d0; border-radius: 4px; font-size: 0.8rem;">
+                        <input type="date" id="constructor-fecha-fin" placeholder="Hasta"
+                            value="{{ $filtros['fecha_fin'] ?? '' }}"
+                            style="flex: 1; padding: 0.35rem; border: 1px solid #a7f3d0; border-radius: 4px; font-size: 0.8rem;">
+                    </div>
+                </div>
+            </div>
+
+            {{-- Preview y exportación --}}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.25rem;">🔍 Vista previa y descarga</div>
+                <button type="button" id="btn-constructor-preview" class="btn btn-primary" style="background: #059669; border-color: #059669; display: flex; align-items: center; gap: 0.4rem; justify-content: center;">
+                    <span id="constructor-spinner" style="display: none;">⏳</span>
+                    <span>Vista Previa del Reporte</span>
+                </button>
+
+                {{-- Nombre del reporte generado --}}
+                <div id="constructor-titulo-box" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.5rem; font-size: 0.8rem;">
+                    <div style="font-weight: 600; color: #065f46; margin-bottom: 0.2rem;">📄 Reporte:</div>
+                    <div id="constructor-titulo-texto" style="color: #1f2937; word-break: break-word;"></div>
+                    <div style="font-size: 0.7rem; color: #6b7280; margin-top: 0.2rem;" id="constructor-total-texto"></div>
+                </div>
+
+                {{-- Botones de descarga --}}
+                <div id="constructor-descargas" style="display: none; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <form id="form-constructor-csv" method="POST" action="{{ route('reportes.constructor.csv') }}" style="margin: 0;">
+                        @csrf
+                        <input type="hidden" name="_columnas_csv" value="">
+                        <input type="hidden" name="_agrupacion_csv" value="">
+                        <input type="hidden" name="_metricas_csv" value="">
+                        <input type="hidden" name="_fecha_inicio_csv" value="">
+                        <input type="hidden" name="_fecha_fin_csv" value="">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; gap: 0.4rem; justify-content: center; font-size: 0.82rem;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Descargar CSV / Excel
+                        </button>
+                    </form>
+                    <form id="form-constructor-pdf" method="POST" action="{{ route('reportes.constructor.pdf') }}" style="margin: 0;">
+                        @csrf
+                        <input type="hidden" name="_columnas_pdf" value="">
+                        <input type="hidden" name="_agrupacion_pdf" value="">
+                        <input type="hidden" name="_metricas_pdf" value="">
+                        <input type="hidden" name="_fecha_inicio_pdf" value="">
+                        <input type="hidden" name="_fecha_fin_pdf" value="">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; gap: 0.4rem; justify-content: center; font-size: 0.82rem; background: #059669; border-color: #059669;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            Descargar PDF
+                        </button>
+                    </form>
+                </div>
+
+                {{-- Estado --}}
+                <div id="constructor-estado" style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;"></div>
+            </div>
+        </div>
+
+        {{-- Tabla de vista previa del constructor --}}
+        <div id="constructor-preview-box" style="display: none; margin-top: 1rem; border-top: 1px solid #a7f3d0; padding-top: 1rem;">
+            <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">Vista Previa (primeros 50 registros)</div>
+            <div style="overflow-x: auto; max-height: 320px; overflow-y: auto; border: 1px solid #a7f3d0; border-radius: 6px; background: white;">
+                <table id="constructor-tabla" class="table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                    <thead id="constructor-tabla-head" style="background: #059669; color: white; position: sticky; top: 0;"></thead>
+                    <tbody id="constructor-tabla-body"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -318,7 +445,16 @@
     color: white;
     border-color: #2563eb;
 }
+@media (max-width: 900px) {
+    .constructor-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
 </style>
 
-<script src="{{ asset('js/reportes.js') }}" defer data-consulta-url="{{ route('reportes.ia.consultar') }}" data-transcripcion-url="{{ route('reportes.ia.transcribir') }}" data-csrf="{{ csrf_token() }}"></script>
+<script src="{{ asset('js/reportes.js') }}" defer
+    data-consulta-url="{{ route('reportes.ia.consultar') }}"
+    data-transcripcion-url="{{ route('reportes.ia.transcribir') }}"
+    data-constructor-url="{{ route('reportes.constructor.preview') }}"
+    data-csrf="{{ csrf_token() }}"></script>
 @endsection
