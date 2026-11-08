@@ -1,15 +1,13 @@
-# HANDOFF — Demo Agenda Seeding & Slot Recovery (CU18)
+# HANDOFF — Global Waitlist Offer Banner & CU18 Diagnostic
 
 ## Completed
-- Upgraded `PoblarAgendaDemoCommand` with robust `NOT NULL` columns for `pacientes` (`telefono`, `genero`, `fecha_nacimiento`) and conflict-free `ci` / `email` lookups compatible with PostgreSQL (Neon).
-- Wrapped `Artisan::call` in `try...catch` with logging in `/citas/poblar-demo` so it never throws 500.
-- Populated morning confirmed appointments (08:00 - 09:00) with demo patients: María Ballesteros, Lucía Fernández, Mateo Villagómez, and Camila Antelo across all active doctors.
-- Added direct `⚡ Poblar Demo` buttons in both `/citas` and `/agenda`.
+- Diagnosed CU18 test discrepancy: Maria Ballesteros had appointments across multiple specialties, and the cancelled appointment was in Geriatría, whereas the patient was on the waitlist for Medicina General.
+- Added global floating banner in `resources/views/layouts/app.blade.php` that immediately informs the patient whenever an active `OfertaCupo` is pending across any view.
+- Confirmed Render cloud deployment is live with all demo appointments populated on PostgreSQL (Neon).
 
 ## Modified Files
-- `app/Console/Commands/PoblarAgendaDemoCommand.php`
-- `routes/web.php`
+- `resources/views/layouts/app.blade.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Commit & push changes to trigger Render deployment.
+- Instruct the user to cancel Maria Ballesteros' Medicina General appointment for tomorrow (14/11/2026 08:00 hrs) with Dr. Roberto Pérez.

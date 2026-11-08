@@ -57,7 +57,38 @@
                 @auth
                     @php
                         $totalAvisosNoLeidos = Auth::user()->notificaciones()->where('leido', false)->count();
+                        $ofertasActivasUsuario = collect();
+                        if (Auth::user()->isPaciente()) {
+                            $pacientesIds = app(\App\Services\AccesoPacienteService::class)->pacientes(Auth::user())->pluck('id');
+                            $ofertasActivasUsuario = \App\Models\P4\OfertaCupo::with(['slot.medico.user', 'slot.medico.especialidad'])
+                                ->where('estado', 'pendiente')
+                                ->where('fecha_vencimiento', '>', now())
+                                ->whereHas('listaEspera', fn ($q) => $q->whereIn('paciente_id', $pacientesIds))
+                                ->get();
+                        }
                     @endphp
+                    @if($ofertasActivasUsuario->isNotEmpty())
+                        @foreach($ofertasActivasUsuario as $of)
+                            <div class="card" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-left: 4px solid #16a34a; color: #166534; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-radius: var(--border-radius-md); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);">
+                                <div style="display: flex; align-items: center; gap: 0.85rem;">
+                                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #16a34a; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0;">
+                                        ⚡
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 1rem; color: #14532d;">
+                                            ¡Tienes un turno liberado disponible por Lista de Espera! (CU18)
+                                        </div>
+                                        <div style="font-size: 0.85rem; color: #166534;">
+                                            {{ $of->slot->medico->especialidad->nombre }} con Dr. {{ $of->slot->medico->user->name }} · {{ $of->slot->fecha->format('d/m/Y') }} a las {{ substr($of->slot->hora_inicio, 0, 5) }}. Tienes 10 minutos para confirmar.
+                                        </div>
+                                    </div>
+                                </div>
+                                <a href="{{ route('espera.ofertas.show', $of) }}" class="btn btn-primary" style="background: #16a34a; border-color: #15803d; padding: 0.5rem 1.25rem; font-weight: 700; text-decoration: none; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);">
+                                    Revisar y Aceptar Cupo →
+                                </a>
+                            </div>
+                        @endforeach
+                    @endif
                     @if($totalAvisosNoLeidos > 0 && !request()->routeIs('avisos.index'))
                         <div class="card" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border-left: 4px solid var(--color-primary); color: #1e3a8a; padding: 0.95rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-radius: var(--border-radius-md); box-shadow: 0 2px 6px rgba(13, 124, 124, 0.12);">
                             <div style="display: flex; align-items: center; gap: 0.85rem;">
