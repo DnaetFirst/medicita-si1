@@ -773,14 +773,14 @@ class Etapa4Test extends TestCase
      */
     public function test_unattended_appointment_automatically_transitions_to_inasistencia_after_15_minutes(): void
     {
-        $horaPasada = now()->subMinutes(20)->format('H:i');
+        $pasado = now()->subMinutes(20);
         $citaAntigua = Cita::create([
-            'codigo_ficha' => 'FCH-'.today()->format('Ymd').'-AUTOINASIST',
+            'codigo_ficha' => 'FCH-'.$pasado->format('Ymd').'-AUTOINASIST',
             'paciente_id' => $this->paciente->id,
             'medico_id' => $this->medico->id,
             'slot_id' => $this->slot->id,
-            'fecha' => today(),
-            'hora' => $horaPasada,
+            'fecha' => $pasado->toDateString(),
+            'hora' => $pasado->format('H:i'),
             'estado' => 'programada',
         ]);
 

@@ -1,26 +1,22 @@
-# HANDOFF — CU17 Full Implementation: 3 Reporting Modalities & Formats
+# HANDOFF — Fix Column Selection in Report Builder (CU17)
 
 ## Completed
-- Implemented **3 Report Types** for CU17:
-  1. *Filtros de datos:* Filter-driven operational metrics with direct CSV and native ISO PDF 1.4 download.
-  2. *Constructor visual:* Interactive report builder choosing columns, groupings (specialty, doctor, status, month), and metrics with live preview and PDF/CSV export.
-  3. *Nota de voz / IA:* Multimodal audio recording, Gemini STT transcription, AST-validated SQL execution, human-readable report titles, and direct PDF/CSV exports.
-- Native binary ISO PDF 1.4 generation service (`ReportePdfService`) without third-party dependencies.
-- Structured CSV exports with UTF-8 BOM, metadata header rows, and dynamic filenames specifying report name and extension (`.csv`, `.pdf`).
-- Full test coverage with 8 new feature tests in `Cu17ReportesTresTiposTest`. Entire suite (200/200 tests) passing with 1,014 assertions.
+- Fixed column selection in the visual report builder (Tipo 2):
+  * Added clear dual-mode switcher:
+    1. **📋 Reporte Detallado (Columnas a Medida):** User selects any combination of columns (`Código`, `Fecha`, `Hora`, `Médico`, `Paciente`, `CI`, `Estado`, etc.) with optional grouping/ordering by specialty, doctor, or status. All selected columns are preserved in preview, CSV, and PDF.
+    2. **📈 Resumen Estadístico (Métricas y Totales):** Calculates grouped metrics (`Total de citas`, `Tasa de asistencia (%)`, `Cancelaciones`, `Inasistencias`).
+  * Added quick selection buttons: `[✓ Todas]` and `[✕ Limpiar]`.
+  * Updated `ReporteConstructorService` and `ReporteController` to support both modes seamlessly.
+- Entire test suite (201/201 tests) passing with 1,025 assertions.
 
 ## Modified Files
-- `app/Services/ReportePdfService.php` (new)
-- `app/Services/ReporteConstructorService.php` (new)
+- `app/Services/ReporteConstructorService.php`
 - `app/Http/Controllers/P6_Reportes/ReporteController.php`
-- `routes/web.php`
 - `resources/views/p6_reportes/index.blade.php`
-- `resources/views/p6_reportes/print_pdf.blade.php`
-- `resources/views/p6_reportes/ia_pdf.blade.php`
 - `public/js/reportes.js`
-- `tests/Feature/Cu17ReportesTresTiposTest.php` (new)
-- `CONTEXT.md`
+- `tests/Feature/Cu17ReportesTresTiposTest.php`
+- `tests/Feature/Etapa4Test.php`
 - `HANDOFF.md`
 
 ## Next Step / Pending
-- Ready for user review or deployment to Render production.
+- Ready for user testing on the report builder.

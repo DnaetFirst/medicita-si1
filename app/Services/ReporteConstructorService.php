@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Servicio para el constructor interactivo de reportes (CU17 Tipo 2).
- * Permite seleccionar columnas, agrupación y métricas de forma dinámica.
+ * Soporta dos modalidades:
+ * 1. 'columnas' : Reporte detallado de citas con columnas personalizadas (y orden/agrupación opcional).
+ * 2. 'metricas' : Resumen estadístico consolidado con métricas calculadas por grupo.
  */
 class ReporteConstructorService
 {
@@ -42,7 +44,7 @@ class ReporteConstructorService
     public static function agrupacionesDisponibles(): array
     {
         return [
-            'ninguna' => 'Sin agrupación (detalle individual)',
+            'ninguna' => 'Sin agrupación (orden cronológico)',
             'especialidad' => 'Por Especialidad',
             'medico' => 'Por Médico',
             'estado' => 'Por Estado de Cita',
@@ -52,7 +54,7 @@ class ReporteConstructorService
     }
 
     /**
-     * Métricas adicionales disponibles (aplican solo cuando hay agrupación).
+     * Métricas adicionales disponibles (aplican en modo métricas).
      *
      * @return array<string, string>
      */
@@ -72,37 +74,44 @@ class ReporteConstructorService
      * @param  list<string>  $columnasSeleccionadas
      * @param  list<string>  $metricasSeleccionadas
      * @param  array<string, mixed>  $filtros
-     * @return array{columnas: list<string>, filas: list<array<string, mixed>>, total: int, titulo: string, agrupacion_label: string}
+     * @return array{columnas: list<string>, filas: list<array<string, mixed>>, total: int, agrupacion_label: string}
      */
     public function construir(
         array $columnasSeleccionadas,
         string $agrupacion,
         array $metricasSeleccionadas,
-        array $filtros = []
+        array $filtros = [],
+        string $modo = 'columnas'
     ): array {
         $agrupaciones = self::agrupacionesDisponibles();
         $agrupacionLabel = $agrupaciones[$agrupacion] ?? 'Sin agrupación';
 
-        if ($agrupacion === 'ninguna' || $agrupacion === '') {
-            return $this->construirDetalle($columnasSeleccionadas, $filtros, $agrupacionLabel);
+        // Si se pide explícitamente modo métricas o si no hay columnas y sí hay métricas con agrupación
+        if ($modo === 'metricas' || ($agrupacion !== 'ninguna' && empty($columnasSeleccionadas) && ! empty($metricasSeleccionadas))) {
+            return $this->construirAgrupado($agrupacion, $metricasSeleccionadas, $filtros, $agrupacionLabel);
         }
 
-        return $this->construirAgrupado($agrupacion, $metricasSeleccionadas, $filtros, $agrupacionLabel);
+        // Modo columnas detalladas (predeterminado)
+        return $this->construirDetalle($columnasSeleccionadas, $filtros, $agrupacion, $agrupacionLabel);
     }
 
     /**
-     * Genera título descriptivo para el reporte.
+     * Genera título descriptivo para el reporte según el modo y parámetros.
      *
      * @param  list<string>  $metricas
      * @param  array<string, mixed>  $filtros
      */
-    public function generarTitulo(string $agrupacion, array $metricas, array $filtros): string
+    public function generarTitulo(string $agrupacion, array $metricas, array $filtros, string $modo = 'columnas'): string
     {
         $agrupaciones = self::agrupacionesDisponibles();
-        $base = 'Reporte Personalizado';
+        $agrupLabel = $agrupaciones[$agrupacion] ?? $agrupacion;
 
-        if ($agrupacion !== 'ninguna' && $agrupacion !== '') {
-            $base = 'Reporte por '.($agrupaciones[$agrupacion] ?? $agrupacion);
+        if ($modo === 'metricas' && $agrupacion !== 'ninguna' && $agrupacion !== '') {
+            $base = "Resumen Estadístico {$agrupLabel}";
+        } elseif ($agrupacion !== 'ninguna' && $agrupacion !== '') {
+            $base = "Reporte Detallado de Citas — {$agrupLabel}";
+        } else {
+            $base = 'Reporte Detallado de Citas Personalizado';
         }
 
         $sufijos = [];
@@ -112,7 +121,7 @@ class ReporteConstructorService
             $sufijos[] = 'desde '.Carbon::parse($filtros['fecha_inicio'])->format('d/m/Y');
         }
 
-        return $base.(count($sufijos) > 0 ? ' — '.implode(', ', $sufijos) : '');
+        return $base.(count($sufijos) > 0 ? ' ('.implode(', ', $sufijos).')' : '');
     }
 
     /**
@@ -121,7 +130,7 @@ class ReporteConstructorService
     public function generarNombreArchivo(string $titulo): string
     {
         $nombre = mb_strtolower($titulo);
-        $nombre = str_replace([' ', '—', '/', '(', ')'], ['_', '_', '_', '', ''], $nombre);
+        $nombre = str_replace([' ', '—', '/', '(', ')', '·', ':', ','], ['_', '_', '_', '', '', '_', '', ''], $nombre);
         $nombre = preg_replace('/[^a-z0-9_áéíóúñü]/u', '', $nombre) ?? 'reporte';
         $nombre = preg_replace('/_+/', '_', $nombre) ?? 'reporte';
         $nombre = trim($nombre, '_');
@@ -131,17 +140,32 @@ class ReporteConstructorService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // Construcción detallada (sin agrupación)
+    // Construcción detallada (con columnas seleccionadas por el usuario)
     // ──────────────────────────────────────────────────────────────────
 
-    /** @param  array<string, mixed>  $filtros */
-    private function construirDetalle(array $columnasSeleccionadas, array $filtros, string $agrupacionLabel): array
-    {
+    /**
+     * @param  list<string>  $columnasSeleccionadas
+     * @param  array<string, mixed>  $filtros
+     * @return array{columnas: list<string>, filas: list<array<string, mixed>>, total: int, agrupacion_label: string}
+     */
+    private function construirDetalle(
+        array $columnasSeleccionadas,
+        array $filtros,
+        string $agrupacion,
+        string $agrupacionLabel
+    ): array {
         $columnasDef = self::columnasDisponibles();
-        // Validar columnas seleccionadas
-        $columnasValidas = array_filter($columnasSeleccionadas, fn ($c) => isset($columnasDef[$c]));
+
+        // Validar y conservar exactamente las columnas que el usuario seleccionó
+        $columnasValidas = array_values(array_filter($columnasSeleccionadas, fn ($c) => isset($columnasDef[$c])));
         if (empty($columnasValidas)) {
-            $columnasValidas = ['fecha', 'especialidad', 'medico', 'estado'];
+            $columnasValidas = ['codigo_ficha', 'fecha', 'especialidad', 'medico', 'paciente', 'estado'];
+        }
+
+        // Si se eligió una agrupación en modo detalle, asegurar que esa columna esté al inicio para orden visual
+        if ($agrupacion !== 'ninguna' && isset($columnasDef[$agrupacion])) {
+            $columnasValidas = array_values(array_diff($columnasValidas, [$agrupacion]));
+            array_unshift($columnasValidas, $agrupacion);
         }
 
         $query = Cita::query()
@@ -153,9 +177,14 @@ class ReporteConstructorService
         $this->aplicarFiltros($query, $filtros);
         $citas = $query->get();
 
+        // Si se seleccionó agrupar/ordenar, ordenar las filas por la dimensión elegida
+        if ($agrupacion !== 'ninguna') {
+            $citas = $citas->sortBy(fn (Cita $c) => $this->resolverClaveAgrupacion($c, $agrupacion))->values();
+        }
+
         $etiquetas = [];
         foreach ($columnasValidas as $col) {
-            $etiquetas[] = $columnasDef[$col] ?? $col;
+            $etiquetas[] = $columnasDef[$col];
         }
 
         $filas = [];
@@ -176,19 +205,29 @@ class ReporteConstructorService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // Construcción agrupada
+    // Construcción agrupada (resumen estadístico con métricas calculadas)
     // ──────────────────────────────────────────────────────────────────
 
     /**
      * @param  list<string>  $metricas
      * @param  array<string, mixed>  $filtros
+     * @return array{columnas: list<string>, filas: list<array<string, mixed>>, total: int, agrupacion_label: string}
      */
-    private function construirAgrupado(string $agrupacion, array $metricas, array $filtros, string $agrupacionLabel): array
-    {
+    private function construirAgrupado(
+        string $agrupacion,
+        array $metricas,
+        array $filtros,
+        string $agrupacionLabel
+    ): array {
         $metricasDef = self::metricasDisponibles();
         $metricasValidas = array_filter($metricas, fn ($m) => isset($metricasDef[$m]));
         if (empty($metricasValidas)) {
-            $metricasValidas = ['total'];
+            $metricasValidas = ['total', 'tasa_asistencia'];
+        }
+
+        if ($agrupacion === 'ninguna' || $agrupacion === '') {
+            $agrupacion = 'especialidad';
+            $agrupacionLabel = 'Por Especialidad';
         }
 
         $query = Cita::query()->with(['medico.user', 'medico.especialidad']);
@@ -214,7 +253,7 @@ class ReporteConstructorService
         foreach ($grupos as $grupo) {
             $citasGrupo = $grupo['citas'];
             $total = count($citasGrupo);
-            $atendidas = count(array_filter($citasGrupo, fn ($c) => $c->estado === 'atendida'));
+            $atendidas = count(array_filter($citasGrupo, fn ($c) => in_array($c->estado, ['atendida', 'completada'])));
             $canceladas = count(array_filter($citasGrupo, fn ($c) => $c->estado === 'cancelada'));
             $inasistencias = count(array_filter($citasGrupo, fn ($c) => $c->estado === 'inasistencia'));
 
@@ -272,18 +311,18 @@ class ReporteConstructorService
     private function extraerValor(Cita $cita, string $col): mixed
     {
         return match ($col) {
-            'codigo_ficha' => $cita->codigo_ficha,
-            'fecha' => $cita->fecha ? Carbon::parse($cita->fecha)->format('d/m/Y') : '',
-            'hora' => $cita->hora ? substr($cita->hora, 0, 5) : '',
+            'codigo_ficha' => $cita->codigo_ficha ?? '—',
+            'fecha' => $cita->fecha ? Carbon::parse($cita->fecha)->format('d/m/Y') : '—',
+            'hora' => $cita->hora ? substr($cita->hora, 0, 5) : '—',
             'especialidad' => $cita->medico?->especialidad?->nombre ?? 'N/A',
             'medico' => $cita->medico?->user?->name ?? 'N/A',
             'paciente' => $cita->paciente ? trim(($cita->paciente->nombres ?? '').' '.($cita->paciente->apellidos ?? '')) : 'N/A',
             'ci' => $cita->paciente?->ci ?? 'N/A',
             'estado' => ucfirst(str_replace('_', ' ', $cita->estado ?? '')),
-            'motivo_cancelacion' => $cita->motivo_cancelacion ?? '',
+            'motivo_cancelacion' => $cita->motivo_cancelacion ?: '—',
             'es_cupo_recuperado' => $cita->es_cupo_recuperado ? 'Sí' : 'No',
-            'fecha_registro' => $cita->created_at ? Carbon::parse($cita->created_at)->format('d/m/Y H:i') : '',
-            default => '',
+            'fecha_registro' => $cita->created_at ? Carbon::parse($cita->created_at)->format('d/m/Y H:i') : '—',
+            default => '—',
         };
     }
 
@@ -312,7 +351,7 @@ class ReporteConstructorService
      *
      * @param  list<string>  $columnas
      * @param  list<array<string, mixed>>  $filas
-     * @param  string  $titulo  Incluido como comentario en las primeras filas
+     * @param  string  $titulo  Incluido como metadato en las primeras filas
      */
     public function generarCsv(string $titulo, array $columnas, array $filas): string
     {

@@ -246,26 +246,81 @@
     const btnPreview = byId('btn-constructor-preview');
 
     if (btnPreview && constructorUrl) {
+        let modoActual = 'columnas'; // 'columnas' o 'metricas'
+
+        const btnModoColumnas = byId('btn-modo-columnas');
+        const btnModoMetricas = byId('btn-modo-metricas');
+        const colBox = byId('constructor-col-box');
+        const metricasBox = byId('constructor-metricas-box');
+        const metricasContenedor = byId('constructor-metricas-contenedor');
+        const labelAgrupacion = byId('label-agrupacion');
+        const colModoNota = byId('col-modo-nota');
+
+        const aplicarModo = modo => {
+            modoActual = modo;
+            if (modo === 'columnas') {
+                if (btnModoColumnas) {
+                    btnModoColumnas.style.background = '#059669';
+                    btnModoColumnas.style.borderColor = '#059669';
+                    btnModoColumnas.style.color = 'white';
+                }
+                if (btnModoMetricas) {
+                    btnModoMetricas.style.background = 'white';
+                    btnModoMetricas.style.borderColor = '#a7f3d0';
+                    btnModoMetricas.style.color = '#065f46';
+                }
+                if (colBox) {
+                    colBox.style.opacity = '1';
+                    colBox.querySelectorAll('input').forEach(el => el.disabled = false);
+                }
+                if (metricasContenedor) {
+                    metricasContenedor.style.opacity = '0.35';
+                    metricasContenedor.querySelectorAll('input').forEach(el => el.disabled = true);
+                }
+                if (labelAgrupacion) labelAgrupacion.textContent = '🗂️ Ordenar / Agrupar por';
+                if (colModoNota) colModoNota.textContent = '✓ Mostrando citas individuales con las columnas que marques a continuación.';
+            } else {
+                if (btnModoMetricas) {
+                    btnModoMetricas.style.background = '#059669';
+                    btnModoMetricas.style.borderColor = '#059669';
+                    btnModoMetricas.style.color = 'white';
+                }
+                if (btnModoColumnas) {
+                    btnModoColumnas.style.background = 'white';
+                    btnModoColumnas.style.borderColor = '#a7f3d0';
+                    btnModoColumnas.style.color = '#065f46';
+                }
+                if (colBox) {
+                    colBox.style.opacity = '0.5';
+                }
+                if (metricasContenedor) {
+                    metricasContenedor.style.opacity = '1';
+                    metricasContenedor.querySelectorAll('input').forEach(el => el.disabled = false);
+                }
+                if (labelAgrupacion) labelAgrupacion.textContent = '🗂️ Consolidar totales por';
+                if (colModoNota) colModoNota.textContent = 'ⓘ En modo resumen se calculan totales consolidados por grupo (ver métricas a la derecha).';
+            }
+        };
+
+        btnModoColumnas?.addEventListener('click', () => aplicarModo('columnas'));
+        btnModoMetricas?.addEventListener('click', () => aplicarModo('metricas'));
+        aplicarModo('columnas');
+
+        // Botones de selección rápida de columnas
+        byId('btn-seleccionar-todas-cols')?.addEventListener('click', () => {
+            document.querySelectorAll('input[name="col_constructor"]').forEach(el => el.checked = true);
+        });
+        byId('btn-limpiar-cols')?.addEventListener('click', () => {
+            document.querySelectorAll('input[name="col_constructor"]').forEach(el => el.checked = false);
+        });
+
         const getColumnas = () => Array.from(document.querySelectorAll('input[name="col_constructor"]:checked')).map(el => el.value);
         const getMetricas = () => Array.from(document.querySelectorAll('input[name="met_constructor"]:checked')).map(el => el.value);
         const getAgrupacion = () => byId('constructor-agrupacion')?.value || 'ninguna';
         const getFechaInicio = () => byId('constructor-fecha-inicio')?.value || '';
         const getFechaFin = () => byId('constructor-fecha-fin')?.value || '';
 
-        // Deshabilitar métricas cuando agrupación es "ninguna"
-        const agrupacionSel = byId('constructor-agrupacion');
-        const metricasBox = byId('constructor-metricas-box');
-        if (agrupacionSel && metricasBox) {
-            const toggleMetricas = () => {
-                const disabled = agrupacionSel.value === 'ninguna' || agrupacionSel.value === '';
-                metricasBox.style.opacity = disabled ? '0.4' : '1';
-                metricasBox.querySelectorAll('input').forEach(el => el.disabled = disabled);
-            };
-            agrupacionSel.addEventListener('change', toggleMetricas);
-            toggleMetricas();
-        }
-
-        const rellenarFormulario = (formId, colField, agField, metField, fIField, fFField) => {
+        const rellenarFormulario = formId => {
             const form = byId(formId);
             if (!form) return;
             const cols = getColumnas();
@@ -273,20 +328,31 @@
             const mets = getMetricas();
             const fi = getFechaInicio();
             const ff = getFechaFin();
-            // Limpiar campos previos
-            form.querySelectorAll('[name^="columnas"], [name^="agrupacion"], [name^="metricas"], [name^="fecha"]').forEach(el => el.remove());
-            // Insertar nuevos campos hidden
+
+            // Limpiar campos dinámicos previos
+            form.querySelectorAll('[name^="columnas"], [name^="agrupacion"], [name^="metricas"], [name^="fecha"], [name="modo"]').forEach(el => el.remove());
+
+            // Agregar modo
+            const modoInp = document.createElement('input');
+            modoInp.type = 'hidden'; modoInp.name = 'modo'; modoInp.value = modoActual;
+            form.appendChild(modoInp);
+
+            // Insertar columnas seleccionadas
             cols.forEach(c => {
                 const inp = document.createElement('input');
                 inp.type = 'hidden'; inp.name = 'columnas[]'; inp.value = c;
                 form.appendChild(inp);
             });
+
+            // Insertar agrupación y fechas
             [['agrupacion', ags], ['fecha_inicio', fi], ['fecha_fin', ff]].forEach(([n, v]) => {
                 if (!v) return;
                 const inp = document.createElement('input');
                 inp.type = 'hidden'; inp.name = n; inp.value = v;
                 form.appendChild(inp);
             });
+
+            // Insertar métricas
             mets.forEach(m => {
                 const inp = document.createElement('input');
                 inp.type = 'hidden'; inp.name = 'metricas[]'; inp.value = m;
@@ -294,13 +360,23 @@
             });
         };
 
-        // Enviar formularios de descarga
+        // Enviar formularios de descarga asegurando campos sincronizados
         byId('form-constructor-csv')?.addEventListener('submit', () => rellenarFormulario('form-constructor-csv'));
         byId('form-constructor-pdf')?.addEventListener('submit', () => rellenarFormulario('form-constructor-pdf'));
 
         btnPreview.addEventListener('click', async () => {
             const cols = getColumnas();
-            if (!cols.length) { byId('constructor-estado').textContent = '⚠ Selecciona al menos una columna.'; return; }
+            const mets = getMetricas();
+
+            if (modoActual === 'columnas' && !cols.length) {
+                byId('constructor-estado').textContent = '⚠ Selecciona al menos una columna para incluir en el reporte.';
+                return;
+            }
+            if (modoActual === 'metricas' && !mets.length) {
+                byId('constructor-estado').textContent = '⚠ Selecciona al menos una métrica para calcular.';
+                return;
+            }
+
             const spinner = byId('constructor-spinner');
             if (spinner) spinner.style.display = 'inline';
             btnPreview.disabled = true;
@@ -311,9 +387,10 @@
 
             try {
                 const payload = {
+                    modo: modoActual,
                     columnas: cols,
                     agrupacion: getAgrupacion(),
-                    metricas: getMetricas(),
+                    metricas: mets,
                     fecha_inicio: getFechaInicio() || undefined,
                     fecha_fin: getFechaFin() || undefined,
                 };
@@ -330,10 +407,10 @@
 
                 // Mostrar título y total
                 byId('constructor-titulo-texto').textContent = data.titulo;
-                byId('constructor-total-texto').textContent = `${data.total} registros · Agrupado por: ${data.agrupacion_label}`;
+                byId('constructor-total-texto').textContent = `${data.total} registros · Modo: ${modoActual === 'columnas' ? 'Columnas Personalizadas' : 'Resumen Estadístico'} (${data.agrupacion_label})`;
                 byId('constructor-titulo-box').style.display = 'block';
 
-                // Renderizar tabla de preview (máx 50 filas)
+                // Renderizar tabla de preview (primeras 50 filas)
                 const thead = byId('constructor-tabla-head');
                 const tbody = byId('constructor-tabla-body');
                 thead.replaceChildren();
@@ -371,11 +448,10 @@
                 }
                 byId('constructor-preview-box').style.display = 'block';
 
-                // Mostrar botones de descarga
+                // Mostrar botones de descarga y pre-rellenar los formularios
                 byId('constructor-descargas').style.display = 'flex';
-                byId('constructor-estado').textContent = `✅ ${data.total} registros listos.`;
+                byId('constructor-estado').textContent = `✅ ${data.total} registros cargados correctamente.`;
 
-                // Pre-rellenar formularios de descarga
                 rellenarFormulario('form-constructor-csv');
                 rellenarFormulario('form-constructor-pdf');
 

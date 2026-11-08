@@ -119,7 +119,8 @@ class Cu17ReportesTresTiposTest extends TestCase
         $user = $this->usuario('admin');
 
         $response = $this->actingAs($user)->postJson(route('reportes.constructor.preview'), [
-            'columnas' => ['codigo_ficha', 'especialidad', 'medico', 'paciente', 'estado'],
+            'modo' => 'columnas',
+            'columnas' => ['codigo_ficha', 'especialidad', 'medico', 'paciente', 'ci', 'estado'],
             'agrupacion' => 'ninguna',
             'fecha_inicio' => '2026-11-01',
             'fecha_fin' => '2026-11-07',
@@ -132,7 +133,34 @@ class Cu17ReportesTresTiposTest extends TestCase
         ]);
         $this->assertGreaterThanOrEqual(1, $response->json('total'));
         $this->assertContains('Código de Ficha', $response->json('columnas'));
+        $this->assertContains('Paciente', $response->json('columnas'));
+        $this->assertContains('CI Paciente', $response->json('columnas'));
+        $this->assertContains('Estado', $response->json('columnas'));
+
+        $filas = $response->json('filas');
+        $this->assertNotEmpty($filas);
+        $this->assertEquals('FIC-TEST-001', $filas[0]['Código de Ficha']);
+        $this->assertEquals('1234567', $filas[0]['CI Paciente']);
+    }
+
+    public function test_tipo_2_constructor_modo_columnas_con_agrupacion_ordena_y_respeta_columnas(): void
+    {
+        $this->crearDatosPrueba();
+        $user = $this->usuario('recepcionista');
+
+        $response = $this->actingAs($user)->postJson(route('reportes.constructor.preview'), [
+            'modo' => 'columnas',
+            'columnas' => ['paciente', 'medico', 'estado'],
+            'agrupacion' => 'especialidad',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        // Debe incluir Especialidad al inicio por la agrupación y respetar todas las columnas
         $this->assertContains('Especialidad', $response->json('columnas'));
+        $this->assertContains('Paciente', $response->json('columnas'));
+        $this->assertContains('Médico', $response->json('columnas'));
+        $this->assertContains('Estado', $response->json('columnas'));
     }
 
     public function test_tipo_2_constructor_preview_con_agrupacion_calcula_metricas(): void
@@ -141,6 +169,7 @@ class Cu17ReportesTresTiposTest extends TestCase
         $user = $this->usuario('recepcionista');
 
         $response = $this->actingAs($user)->postJson(route('reportes.constructor.preview'), [
+            'modo' => 'metricas',
             'agrupacion' => 'especialidad',
             'metricas' => ['total', 'tasa_asistencia', 'cancelaciones'],
         ]);

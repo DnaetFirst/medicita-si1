@@ -226,47 +226,70 @@
                 <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: #059669; color: white; font-size: 1rem;">📊</span>
                 <div>
                     <h2 style="font-size: 1.1rem; font-weight: 700; color: #064e3b; margin: 0;">Constructor Visual de Reportes (Tipo 2)</h2>
-                    <p style="font-size: 0.8rem; color: #475569; margin: 0;">Selecciona columnas, agrupación y métricas. Previsualiza el resultado y descarga en PDF o Excel.</p>
+                    <p style="font-size: 0.8rem; color: #475569; margin: 0;">Elige entre un reporte detallado con tus columnas personalizadas o un resumen estadístico por grupo.</p>
                 </div>
             </div>
             <span style="font-size: 0.75rem; background: #d1fae5; color: #065f46; padding: 0.25rem 0.5rem; border-radius: 9999px; font-weight: 600;">Personalizable</span>
         </div>
 
+        {{-- Selector de Modo de Construcción --}}
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap;" role="tablist">
+            <button type="button" id="btn-modo-columnas" class="btn-modo active" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; font-weight: 600; border-radius: 6px; cursor: pointer; border: 2px solid #059669; background: #059669; color: white; transition: all 0.2s ease;">
+                📋 Reporte Detallado (Columnas a Medida)
+            </button>
+            <button type="button" id="btn-modo-metricas" class="btn-modo" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; font-weight: 600; border-radius: 6px; cursor: pointer; border: 2px solid #a7f3d0; background: white; color: #065f46; transition: all 0.2s ease;">
+                📈 Resumen Estadístico (Métricas y Totales)
+            </button>
+        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;" class="constructor-grid">
             {{-- Columnas disponibles --}}
-            <div>
-                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">📋 Columnas a incluir</div>
+            <div id="constructor-col-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b;">📋 Columnas a incluir</div>
+                    <div style="display: flex; gap: 0.3rem;">
+                        <button type="button" id="btn-seleccionar-todas-cols" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border: 1px solid #a7f3d0; border-radius: 4px; background: white; color: #065f46; cursor: pointer;" title="Seleccionar todas las columnas">✓ Todas</button>
+                        <button type="button" id="btn-limpiar-cols" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border: 1px solid #cbd5e1; border-radius: 4px; background: white; color: #64748b; cursor: pointer;" title="Deseleccionar todas las columnas">✕ Limpiar</button>
+                    </div>
+                </div>
                 <div style="border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem; background: white; max-height: 220px; overflow-y: auto;">
                     @foreach($columnasDisponibles as $clave => $etiqueta)
                     <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #1f2937; padding: 0.2rem 0; cursor: pointer;">
                         <input type="checkbox" name="col_constructor" value="{{ $clave }}"
-                            {{ in_array($clave, ['fecha', 'especialidad', 'medico', 'estado']) ? 'checked' : '' }}
+                            {{ in_array($clave, ['codigo_ficha', 'fecha', 'especialidad', 'medico', 'paciente', 'estado']) ? 'checked' : '' }}
                             style="accent-color: #059669;">
                         {{ $etiqueta }}
                     </label>
                     @endforeach
                 </div>
+                <div id="col-modo-nota" style="font-size: 0.72rem; color: #047857; margin-top: 0.35rem;">
+                    ✓ Selecciona exactamente qué datos deseas ver en tu reporte.
+                </div>
             </div>
 
-            {{-- Agrupación --}}
+            {{-- Agrupación y Métricas --}}
             <div>
-                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">🗂️ Agrupar por</div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">
+                    <span id="label-agrupacion">🗂️ Ordenar / Agrupar por</span>
+                </div>
                 <select id="constructor-agrupacion" style="width: 100%; padding: 0.5rem; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.75rem; background: white;">
                     @foreach($agrupacionesDisponibles as $clave => $etiqueta)
                     <option value="{{ $clave }}">{{ $etiqueta }}</option>
                     @endforeach
                 </select>
 
-                <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">📈 Métricas (con agrupación)</div>
-                <div id="constructor-metricas-box" style="border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem; background: white;">
-                    @foreach($metricasDisponibles as $clave => $etiqueta)
-                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #1f2937; padding: 0.2rem 0; cursor: pointer;">
-                        <input type="checkbox" name="met_constructor" value="{{ $clave }}"
-                            {{ $clave === 'total' ? 'checked' : '' }}
-                            style="accent-color: #059669;">
-                        {{ $etiqueta }}
-                    </label>
-                    @endforeach
+                <div id="constructor-metricas-contenedor">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #064e3b; margin-bottom: 0.5rem;">📈 Métricas a calcular</div>
+                    <div id="constructor-metricas-box" style="border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem; background: white;">
+                        @foreach($metricasDisponibles as $clave => $etiqueta)
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #1f2937; padding: 0.2rem 0; cursor: pointer;">
+                            <input type="checkbox" name="met_constructor" value="{{ $clave }}"
+                                {{ in_array($clave, ['total', 'tasa_asistencia']) ? 'checked' : '' }}
+                                style="accent-color: #059669;">
+                            {{ $etiqueta }}
+                        </label>
+                        @endforeach
+                    </div>
                 </div>
 
                 {{-- Filtros de fecha rápidos para el constructor --}}
@@ -302,11 +325,6 @@
                 <div id="constructor-descargas" style="display: none; display: flex; flex-direction: column; gap: 0.4rem;">
                     <form id="form-constructor-csv" method="POST" action="{{ route('reportes.constructor.csv') }}" style="margin: 0;">
                         @csrf
-                        <input type="hidden" name="_columnas_csv" value="">
-                        <input type="hidden" name="_agrupacion_csv" value="">
-                        <input type="hidden" name="_metricas_csv" value="">
-                        <input type="hidden" name="_fecha_inicio_csv" value="">
-                        <input type="hidden" name="_fecha_fin_csv" value="">
                         <button type="submit" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; gap: 0.4rem; justify-content: center; font-size: 0.82rem;">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             Descargar CSV / Excel
@@ -314,10 +332,17 @@
                     </form>
                     <form id="form-constructor-pdf" method="POST" action="{{ route('reportes.constructor.pdf') }}" style="margin: 0;">
                         @csrf
-                        <input type="hidden" name="_columnas_pdf" value="">
-                        <input type="hidden" name="_agrupacion_pdf" value="">
-                        <input type="hidden" name="_metricas_pdf" value="">
-                        <input type="hidden" name="_fecha_inicio_pdf" value="">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; gap: 0.4rem; justify-content: center; font-size: 0.82rem; background: #059669; border-color: #059669;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            Descargar PDF
+                        </button>
+                    </form>
+                </div>
+
+                {{-- Estado --}}
+                <div id="constructor-estado" style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;"></div>
+            </div>
+        </div>
                         <input type="hidden" name="_fecha_fin_pdf" value="">
                         <button type="submit" class="btn btn-primary" style="width: 100%; display: flex; align-items: center; gap: 0.4rem; justify-content: center; font-size: 0.82rem; background: #059669; border-color: #059669;">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>

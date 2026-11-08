@@ -189,6 +189,7 @@ class ReporteController extends Controller
     public function construirReporte(Request $request): JsonResponse
     {
         $datos = $request->validate([
+            'modo' => ['nullable', 'string', 'in:columnas,metricas'],
             'columnas' => ['nullable', 'array', 'max:11'],
             'columnas.*' => ['string', 'in:'.implode(',', array_keys(ReporteConstructorService::columnasDisponibles()))],
             'agrupacion' => ['nullable', 'string', 'in:'.implode(',', array_keys(ReporteConstructorService::agrupacionesDisponibles()))],
@@ -209,12 +210,13 @@ class ReporteController extends Controller
             'estado' => $datos['estado'] ?? null,
         ]);
 
+        $modo = $datos['modo'] ?? 'columnas';
         $agrupacion = $datos['agrupacion'] ?? 'ninguna';
-        $columnas = $datos['columnas'] ?? ['fecha', 'especialidad', 'medico', 'estado'];
+        $columnas = $datos['columnas'] ?? [];
         $metricas = $datos['metricas'] ?? ['total'];
 
-        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros);
-        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros);
+        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros, $modo);
+        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros, $modo);
 
         return response()->json([
             'ok' => true,
@@ -233,6 +235,7 @@ class ReporteController extends Controller
     public function exportarConstructorCsv(Request $request): Response
     {
         $datos = $request->validate([
+            'modo' => ['nullable', 'string', 'in:columnas,metricas'],
             'columnas' => ['nullable', 'array', 'max:11'],
             'columnas.*' => ['string', 'in:'.implode(',', array_keys(ReporteConstructorService::columnasDisponibles()))],
             'agrupacion' => ['nullable', 'string', 'in:'.implode(',', array_keys(ReporteConstructorService::agrupacionesDisponibles()))],
@@ -253,12 +256,13 @@ class ReporteController extends Controller
             'estado' => $datos['estado'] ?? null,
         ]);
 
+        $modo = $datos['modo'] ?? 'columnas';
         $agrupacion = $datos['agrupacion'] ?? 'ninguna';
-        $columnas = $datos['columnas'] ?? ['fecha', 'especialidad', 'medico', 'estado'];
+        $columnas = $datos['columnas'] ?? [];
         $metricas = $datos['metricas'] ?? ['total'];
 
-        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros);
-        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros);
+        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros, $modo);
+        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros, $modo);
         $csv = $this->constructorService->generarCsv($titulo, $resultado['columnas'], $resultado['filas']);
         $nombreArchivo = $this->constructorService->generarNombreArchivo($titulo).'.csv';
 
@@ -275,6 +279,7 @@ class ReporteController extends Controller
     public function exportarConstructorPdf(Request $request): Response
     {
         $datos = $request->validate([
+            'modo' => ['nullable', 'string', 'in:columnas,metricas'],
             'columnas' => ['nullable', 'array', 'max:11'],
             'columnas.*' => ['string', 'in:'.implode(',', array_keys(ReporteConstructorService::columnasDisponibles()))],
             'agrupacion' => ['nullable', 'string', 'in:'.implode(',', array_keys(ReporteConstructorService::agrupacionesDisponibles()))],
@@ -295,12 +300,13 @@ class ReporteController extends Controller
             'estado' => $datos['estado'] ?? null,
         ]);
 
+        $modo = $datos['modo'] ?? 'columnas';
         $agrupacion = $datos['agrupacion'] ?? 'ninguna';
-        $columnas = $datos['columnas'] ?? ['fecha', 'especialidad', 'medico', 'estado'];
+        $columnas = $datos['columnas'] ?? [];
         $metricas = $datos['metricas'] ?? ['total'];
 
-        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros);
-        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros);
+        $resultado = $this->constructorService->construir($columnas, $agrupacion, $metricas, $filtros, $modo);
+        $titulo = $this->constructorService->generarTitulo($agrupacion, $metricas, $filtros, $modo);
 
         $pdf = $this->pdfService->generarReportePersonalizado(
             $titulo,
