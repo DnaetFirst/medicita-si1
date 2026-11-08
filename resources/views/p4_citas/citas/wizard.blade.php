@@ -47,7 +47,46 @@
     <!-- Formulario Principal -->
     <form id="wizardForm" method="POST" action="{{ route('citas.store') }}">
         @csrf
-        @if($derivacion)<input type="hidden" name="derivacion_id" value="{{ $derivacion->id }}"><p class="card cycle-card">Reserva asociada a la derivación #{{ $derivacion->id }}. El paciente y la especialidad se verificarán al confirmar.</p>@endif
+        <input type="hidden" name="derivacion_id" id="hiddenDerivacionId" value="{{ $derivacion?->id }}">
+
+        <!-- Alerta Informativa de Derivación Médica (CU14 / CU8) -->
+        <div id="alertaDerivacion" class="card" style="display: {{ $derivacion ? 'block' : 'none' }}; background: #eef8f8; border: 2px solid var(--color-primary); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(13, 124, 124, 0.08);">
+            <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div style="background: var(--color-primary); color: white; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(13, 124, 124, 0.25);">
+                    📋
+                </div>
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.35rem;">
+                        <h3 style="margin: 0; color: var(--color-primary); font-size: 1.15rem; font-weight: 700;">
+                            Derivación Médica Vigente
+                        </h3>
+                        <span id="badgeDerivacionEstado" class="badge badge-success" style="font-size: 0.75rem;">
+                            Especialidad Preseleccionada
+                        </span>
+                    </div>
+                    <p id="alertaDerivacionTexto" style="margin: 0 0 0.5rem 0; font-size: 0.95rem; color: var(--color-text); line-height: 1.45;">
+                        @if($derivacion)
+                            El paciente cuenta con una derivación médica emitida por el <strong>Dr. {{ $derivacion->atencion?->autor?->name ?? 'médico tratante' }}</strong> hacia la especialidad de <strong style="color: var(--color-primary);">{{ $derivacion->especialidad?->nombre }}</strong>.
+                        @endif
+                    </p>
+                    <div id="alertaDerivacionDetalles" style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.75rem; background: rgba(255,255,255,0.85); padding: 0.6rem 0.85rem; border-radius: 6px; border-left: 4px solid var(--color-primary); display: {{ $derivacion ? 'block' : 'none' }};">
+                        @if($derivacion)
+                            @if($derivacion->motivo) <div style="margin-bottom: 0.2rem;"><strong>Motivo clínico:</strong> {{ $derivacion->motivo }}</div> @endif
+                            @if($derivacion->indicaciones) <div><strong>Indicaciones del especialista:</strong> {{ $derivacion->indicaciones }}</div> @endif
+                        @endif
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <span class="badge" style="background: #0d7c7c; color: white; font-weight: 600; padding: 0.4rem 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                            Especialidad <span id="lblDerivacionEspecialidadNombre">{{ $derivacion?->especialidad?->nombre }}</span> seleccionada automáticamente
+                        </span>
+                        <span style="font-size: 0.825rem; color: var(--color-text-muted);">
+                            Continúa al <strong>Paso 2</strong> para seleccionar el médico especialista y la fecha deseada.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
         <input type="hidden" name="operacion_id" value="{{ old('operacion_id', (string) Str::uuid()) }}">
         <input type="hidden" name="especialidad_id" id="hiddenEspecialidadId" value="{{ $selectedEspecialidadId }}">
         <input type="hidden" name="medico_id" id="hiddenMedicoId" value="{{ $selectedMedicoId }}">
@@ -66,9 +105,14 @@
             <div class="grid-3" style="gap: 1rem;">
                 @foreach($especialidades as $esp)
                     <div class="especialidad-card card" onclick="seleccionarEspecialidad({{ $esp->id }}, '{{ addslashes($esp->nombre) }}')" id="cardEsp{{ $esp->id }}" style="margin: 0; padding: 1.25rem; cursor: pointer; transition: all 0.2s ease; border: 2px solid {{ $selectedEspecialidadId == $esp->id ? 'var(--color-primary)' : 'var(--color-border)' }}; {{ $selectedEspecialidadId == $esp->id ? 'background: rgba(13,124,124,0.04);' : '' }}">
-                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <span style="width: 14px; height: 14px; border-radius: 50%; background: {{ $esp->color ?? 'var(--color-primary)' }}; display: inline-block;"></span>
-                            <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary);">{{ $esp->nombre }}</h4>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <span style="width: 14px; height: 14px; border-radius: 50%; background: {{ $esp->color ?? 'var(--color-primary)' }}; display: inline-block;"></span>
+                                <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary);">{{ $esp->nombre }}</h4>
+                            </div>
+                            @if($derivacion && $derivacion->especialidad_id == $esp->id)
+                                <span class="badge" id="badgeDerivada{{ $esp->id }}" style="background: var(--color-primary); color: white; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px;">★ Derivada</span>
+                            @endif
                         </div>
                         <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0 0 0.75rem 0; line-height: 1.4;">
                             {{ Str::limit($esp->descripcion, 70) }}
@@ -437,11 +481,12 @@
 <script>
 let currentStep = 1;
 let selectedEspId = {{ $selectedEspecialidadId ?: 'null' }};
-let selectedEspName = '';
+let selectedEspName = @json($especialidades->firstWhere('id', $selectedEspecialidadId)?->nombre ?? '');
 let selectedMedId = {{ $selectedMedicoId ?: 'null' }};
 let selectedMedName = '';
 let selectedSlotId = null;
 let selectedSlotHora = '';
+let derivacionActualEspecialidadId = {{ $derivacion?->especialidad_id ?: 'null' }};
 
 function irAlPaso(n) {
     if (n === 2 && !selectedEspId) {
@@ -503,11 +548,13 @@ function avanzarPaso(n) {
     }
 }
 
-function seleccionarEspecialidad(id, nombre) {
+function seleccionarEspecialidad(id, nombre, autoAdvance = true) {
     selectedEspId = id;
     selectedEspName = nombre;
-    document.getElementById('hiddenEspecialidadId').value = id;
-    document.getElementById('lblEspecialidadSeleccionada').innerText = nombre;
+    const hiddenEsp = document.getElementById('hiddenEspecialidadId');
+    if (hiddenEsp) hiddenEsp.value = id;
+    const lblEsp = document.getElementById('lblEspecialidadSeleccionada');
+    if (lblEsp) lblEsp.innerText = nombre;
 
     document.querySelectorAll('.especialidad-card').forEach(c => {
         c.style.border = '2px solid var(--color-border)';
@@ -520,10 +567,26 @@ function seleccionarEspecialidad(id, nombre) {
         selectedCard.style.background = 'rgba(13,124,124,0.04)';
     }
 
+    // Si el usuario cambia manualmente a una especialidad distinta a la derivada, desvincular derivación
+    const hiddenDeriv = document.getElementById('hiddenDerivacionId');
+    if (hiddenDeriv && hiddenDeriv.value && derivacionActualEspecialidadId && id != derivacionActualEspecialidadId) {
+        hiddenDeriv.value = '';
+        const badgeEstado = document.getElementById('badgeDerivacionEstado');
+        if (badgeEstado) {
+            badgeEstado.textContent = 'Especialidad modificada';
+            badgeEstado.className = 'badge badge-warning';
+        }
+    }
+
     selectedMedId = null;
     resetSlot();
-    document.getElementById('hiddenMedicoId').value = '';
-    avanzarPaso(2);
+    const hiddenMed = document.getElementById('hiddenMedicoId');
+    if (hiddenMed) hiddenMed.value = '';
+    cargarMedicosPorEspecialidad();
+
+    if (autoAdvance) {
+        avanzarPaso(2);
+    }
 }
 
 // Cargar médicos de la especialidad vía AJAX o datos
@@ -756,12 +819,24 @@ const pacientesCatalogo = [
     @php
         $activa = $pac->citas->first();
         $fichaData = $activa ? [
+            'id' => $activa->id,
             'codigo' => $activa->codigo_ficha,
             'fecha' => $activa->fecha ? $activa->fecha->format('d/m/Y') : '',
             'hora' => $activa->hora ? substr($activa->hora, 0, 5) : '',
             'medico' => $activa->medico?->user?->name ?? 'el especialista asignado',
             'especialidad' => $activa->medico?->especialidad?->nombre ?? '',
             'estado' => $activa->estado,
+        ] : null;
+        $der = isset($derivacionesPendientes) ? $derivacionesPendientes->get($pac->id)?->first() : null;
+        $derivacionData = $der ? [
+            'id' => $der->id,
+            'cita_origen_id' => $der->atencion?->cita_id,
+            'especialidad_id' => $der->especialidad_id,
+            'especialidad_nombre' => $der->especialidad?->nombre,
+            'medico' => $der->atencion?->autor?->name ?? 'el médico tratante',
+            'motivo' => $der->motivo,
+            'indicaciones' => $der->indicaciones,
+            'fecha' => $der->created_at?->format('d/m/Y'),
         ] : null;
     @endphp
     {
@@ -771,7 +846,8 @@ const pacientesCatalogo = [
         telefono: @json($pac->telefono ?? ''),
         label: @json($pac->nombre_completo . ' — CI: ' . $pac->ci . ($pac->telefono ? ' (Cel: ' . $pac->telefono . ')' : '')),
         tiene_ficha_activa: {{ $activa ? 'true' : 'false' }},
-        ficha_info: @json($fichaData)
+        ficha_info: @json($fichaData),
+        derivacion_info: @json($derivacionData)
     },
     @endforeach
 ];
@@ -784,7 +860,9 @@ function verificarFichaActiva(p) {
     const alertaTexto = document.getElementById('alertaFichaActivaTexto');
     const btnSubmit = document.getElementById('btnConfirmarCita');
 
-    if (p && p.tiene_ficha_activa && p.ficha_info) {
+    const esCitaOrigenDerivacion = p && p.tiene_ficha_activa && p.ficha_info && p.derivacion_info && p.derivacion_info.cita_origen_id === p.ficha_info.id;
+
+    if (p && p.tiene_ficha_activa && p.ficha_info && !esCitaOrigenDerivacion) {
         pacienteBloqueadoPorFichaActiva = true;
         mensajeBloqueoFicha = `El paciente ${p.nombre} ya cuenta con una ficha médica activa (${p.ficha_info.codigo}) para el ${p.ficha_info.fecha} a las ${p.ficha_info.hora} con ${p.ficha_info.medico} (${p.ficha_info.especialidad}). No es posible emitir otra ficha mientras tenga una activa.`;
 
@@ -812,9 +890,54 @@ function verificarFichaActiva(p) {
     }
 }
 
+function aplicarDerivacionPaciente(p) {
+    const alerta = document.getElementById('alertaDerivacion');
+    const alertaTexto = document.getElementById('alertaDerivacionTexto');
+    const alertaDetalles = document.getElementById('alertaDerivacionDetalles');
+    const lblEspNombre = document.getElementById('lblDerivacionEspecialidadNombre');
+    const hiddenDeriv = document.getElementById('hiddenDerivacionId');
+    const badgeEstado = document.getElementById('badgeDerivacionEstado');
+
+    if (p && p.derivacion_info) {
+        const d = p.derivacion_info;
+        if (hiddenDeriv) hiddenDeriv.value = d.id;
+        derivacionActualEspecialidadId = d.especialidad_id;
+
+        if (alerta && alertaTexto) {
+            alertaTexto.innerHTML = `El paciente <strong>${escapeHtml(p.nombre)}</strong> cuenta con una derivación médica emitida por el <strong>Dr. ${escapeHtml(d.medico)}</strong> hacia la especialidad de <strong style="color: var(--color-primary);">${escapeHtml(d.especialidad_nombre)}</strong>.`;
+            if (alertaDetalles) {
+                let detallesHtml = '';
+                if (d.motivo) detallesHtml += `<div style="margin-bottom: 0.2rem;"><strong>Motivo clínico:</strong> ${escapeHtml(d.motivo)}</div>`;
+                if (d.indicaciones) detallesHtml += `<div><strong>Indicaciones del especialista:</strong> ${escapeHtml(d.indicaciones)}</div>`;
+                alertaDetalles.innerHTML = detallesHtml || '<div>Derivación médica vigente registrada en consulta clínica previa.</div>';
+                alertaDetalles.style.display = 'block';
+            }
+            if (lblEspNombre) lblEspNombre.textContent = d.especialidad_nombre;
+            if (badgeEstado) {
+                badgeEstado.textContent = 'Especialidad Preseleccionada';
+                badgeEstado.className = 'badge badge-success';
+            }
+            alerta.style.display = 'block';
+        }
+
+        // Si la especialidad no está seleccionada o es diferente, preseleccionarla automáticamente
+        if (selectedEspId !== d.especialidad_id) {
+            seleccionarEspecialidad(d.especialidad_id, d.especialidad_nombre, false);
+        }
+    } else {
+        const tieneDerivacionInicial = {{ $derivacion ? 'true' : 'false' }};
+        if (!tieneDerivacionInicial) {
+            if (hiddenDeriv) hiddenDeriv.value = '';
+            derivacionActualEspecialidadId = null;
+            if (alerta) alerta.style.display = 'none';
+        }
+    }
+}
+
 function cambioPacienteRolPaciente(id) {
     const p = pacientesCatalogo.find(item => item.id == id);
     verificarFichaActiva(p);
+    aplicarDerivacionPaciente(p);
 }
 
 const inputBuscar = document.getElementById('inputBuscarPaciente');
@@ -840,6 +963,7 @@ function renderDropdown(items) {
                 <div>
                     <strong style="color: var(--color-primary); font-size: 0.9rem;">${escapeHtml(p.nombre)}</strong>
                     <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-left: 0.4rem;">— CI: ${escapeHtml(p.ci)}</span>
+                    ${p.derivacion_info ? `<span class="badge" style="background: #eef8f8; color: #0d7c7c; border: 1px solid #0d7c7c; font-size: 0.7rem; margin-left: 0.5rem; font-weight: 700;">★ Derivado a: ${escapeHtml(p.derivacion_info.especialidad_nombre)}</span>` : ''}
                 </div>
                 <div style="display: flex; gap: 0.4rem; align-items: center;">
                     ${p.tiene_ficha_activa ? `<span style="font-size: 0.72rem; background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; border: 1px solid #fecaca;">⛔ Ficha Activa: ${escapeHtml(p.ficha_info.codigo)}</span>` : ''}
@@ -879,6 +1003,7 @@ if (inputBuscar) {
         if (infoBadge) infoBadge.style.display = 'none';
         if (btnLimpiar) btnLimpiar.style.display = inputBuscar.value ? 'block' : 'none';
         verificarFichaActiva(null);
+        aplicarDerivacionPaciente(null);
         renderDropdown(filtrarPacientes(inputBuscar.value));
     });
 
@@ -899,12 +1024,18 @@ function seleccionarPacienteItem(id) {
     if (infoBadge) {
         infoBadge.style.display = 'flex';
         if (lblVinculado) {
-            lblVinculado.innerHTML = p.tiene_ficha_activa 
-                ? `${escapeHtml(p.nombre)} (CI: ${escapeHtml(p.ci)}) <span style="color: #991b1b; font-weight: 700; margin-left: 0.5rem;">[⛔ Ficha Activa: ${escapeHtml(p.ficha_info.codigo)}]</span>`
-                : `${escapeHtml(p.nombre)} (CI: ${escapeHtml(p.ci)})`;
+            let badgeText = `${escapeHtml(p.nombre)} (CI: ${escapeHtml(p.ci)})`;
+            if (p.derivacion_info) {
+                badgeText += ` <span class="badge" style="background: #0d7c7c; color: white; font-weight: 700; margin-left: 0.5rem; font-size: 0.72rem;">★ Derivado a: ${escapeHtml(p.derivacion_info.especialidad_nombre)}</span>`;
+            }
+            if (p.tiene_ficha_activa) {
+                badgeText += ` <span style="color: #991b1b; font-weight: 700; margin-left: 0.5rem;">[⛔ Ficha Activa: ${escapeHtml(p.ficha_info.codigo)}]</span>`;
+            }
+            lblVinculado.innerHTML = badgeText;
         }
     }
     verificarFichaActiva(p);
+    aplicarDerivacionPaciente(p);
 }
 
 function limpiarSeleccionPaciente() {
@@ -916,6 +1047,7 @@ function limpiarSeleccionPaciente() {
     if (btnLimpiar) btnLimpiar.style.display = 'none';
     if (infoBadge) infoBadge.style.display = 'none';
     verificarFichaActiva(null);
+    aplicarDerivacionPaciente(null);
     renderDropdown(pacientesCatalogo.slice(0, 30));
 }
 
@@ -941,13 +1073,20 @@ if (wizardFormElem) {
     });
 }
 
-// Inicialización de ficha activa si hay paciente preseleccionado
+// Inicialización de ficha activa y derivación si hay paciente preseleccionado
 document.addEventListener('DOMContentLoaded', function() {
+    if (selectedEspId && selectedEspName) {
+        const lblEsp = document.getElementById('lblEspecialidadSeleccionada');
+        if (lblEsp) lblEsp.innerText = selectedEspName;
+        cargarMedicosPorEspecialidad();
+    }
+
     const preselectedId = {{ $selectedPacienteId ? (int)$selectedPacienteId : 'null' }};
     if (preselectedId) {
         const p = pacientesCatalogo.find(item => item.id === preselectedId);
         if (p) {
             verificarFichaActiva(p);
+            aplicarDerivacionPaciente(p);
         }
     }
 });

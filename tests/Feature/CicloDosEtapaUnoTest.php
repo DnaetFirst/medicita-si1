@@ -6,6 +6,7 @@ use App\Jobs\EnviarAviso;
 use App\Mail\AvisoCitaMail;
 use App\Models\P1\Rol;
 use App\Models\P2\BloqueoAgenda;
+use App\Models\P2\Especialidad;
 use App\Models\P2\Medico;
 use App\Models\P2\Slot;
 use App\Models\P3\AtencionMedica;
@@ -262,6 +263,39 @@ class CicloDosEtapaUnoTest extends TestCase
         $this->post(route('citas.store'), $payload)->assertRedirect();
         $this->assertDatabaseHas('citas', ['derivacion_id' => $derivacion->id, 'paciente_id' => $nota->historia->paciente_id]);
         $this->assertDatabaseHas('derivaciones', ['id' => $derivacion->id, 'estado' => 'agendada']);
+    }
+
+    public function test_wizard_auto_detects_pending_derivation_and_preselects_specialty_for_patient_and_receptionist(): void
+    {
+        $pacienteUser = $this->usuario('paciente');
+        $paciente = Paciente::factory()->create(['user_id' => $pacienteUser->id]);
+        $nota = AtencionMedica::factory()->create();
+        $nota->historia->update(['paciente_id' => $paciente->id]);
+
+        $especialidadDestino = Especialidad::factory()->create(['nombre' => 'Cardiología Especializada']);
+        $derivacion = Derivacion::factory()->create([
+            'atencion_medica_id' => $nota->id,
+            'especialidad_id' => $especialidadDestino->id,
+            'motivo' => 'Control por hipertensión',
+            'estado' => 'emitida',
+        ]);
+
+        // 1. Paciente entra a /citas/nueva sin parámetros: detecta automáticamente la derivación
+        $responsePaciente = $this->actingAs($pacienteUser)->get(route('citas.nueva'));
+        $responsePaciente->assertOk();
+        $responsePaciente->assertSee('Derivación Médica Vigente');
+        $responsePaciente->assertSee('Cardiología Especializada');
+        $responsePaciente->assertSee('Control por hipertensión');
+        $responsePaciente->assertSee('value="'.$derivacion->id.'"', false);
+        $responsePaciente->assertSee('value="'.$especialidadDestino->id.'"', false);
+
+        // 2. Recepcionista entra con ?paciente_id=...: detecta automáticamente la derivación
+        $recepcionista = $this->usuario('recepcionista');
+        $responseRecep = $this->actingAs($recepcionista)->get(route('citas.nueva', ['paciente_id' => $paciente->id]));
+        $responseRecep->assertOk();
+        $responseRecep->assertSee('Derivación Médica Vigente');
+        $responseRecep->assertSee('Cardiología Especializada');
+        $responseRecep->assertSee('value="'.$derivacion->id.'"', false);
     }
 
     public function test_doctor_cannot_create_their_own_patient_access_through_booking(): void

@@ -107,8 +107,35 @@ class CitaWizardController extends Controller
             $fichaActiva = $pacientePreseleccionado?->citas?->first();
         }
 
+        $pacienteIds = $pacientes->pluck('id')->filter()->all();
+        $derivacionesPendientes = collect();
+        if (! empty($pacienteIds)) {
+            $derivacionesPendientes = Derivacion::with(['especialidad', 'atencion.autor', 'atencion.historia'])
+                ->where('estado', 'emitida')
+                ->whereHas('atencion.historia', fn ($q) => $q->whereIn('paciente_id', $pacienteIds))
+                ->latest('id')
+                ->get()
+                ->groupBy(fn ($d) => $d->atencion?->historia?->paciente_id);
+        }
+
+        // Si no se pasó una derivación explícita por URL, autodetectar si el paciente tiene una derivación pendiente activa
+        if (! $derivacion && $pacientePreseleccionado) {
+            $derivacion = $derivacionesPendientes->get($pacientePreseleccionado->id)?->first();
+            if ($derivacion && ! $request->filled('especialidad_id')) {
+                $selectedEspecialidadId = $derivacion->especialidad_id;
+            }
+        }
+
+        if ($selectedEspecialidadId && $medicos->isEmpty()) {
+            $medicos = Medico::with('user')
+                ->where('especialidad_id', $selectedEspecialidadId)
+                ->where('estado', 'activo')
+                ->get();
+        }
+
         return view('p4_citas.citas.wizard', [
             'derivacion' => $derivacion,
+            'derivacionesPendientes' => $derivacionesPendientes,
             'especialidades' => $especialidades,
             'medicos' => $medicos,
             'pacientes' => $pacientes,

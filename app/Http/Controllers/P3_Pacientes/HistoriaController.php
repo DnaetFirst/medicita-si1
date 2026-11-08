@@ -26,6 +26,7 @@ class HistoriaController extends Controller
         $atenciones = AtencionMedica::with(['autor', 'derivaciones.especialidad'])->where('historia_clinica_id', $historia?->id ?? 0)->latest('id')->paginate(10);
         $citas = $paciente->citas()->where('medico_id', $request->user()->medico->id)->where('estado', 'en_atencion')->get();
         $ordenes = OrdenLaboratorio::with(['examenes', 'resultados'])->where('paciente_id', $paciente->id)->latest()->get();
+        $ordenes = OrdenLaboratorio::with(['examenes', 'resultados'])->where('paciente_id', $paciente->id)->latest()->get();
         BitacoraService::registrar('CONSULTAR_HISTORIA_CLINICA', 'P3_Pacientes', ['paciente_id' => $paciente->id]);
 
         return view('p3_pacientes.historia.show', [
